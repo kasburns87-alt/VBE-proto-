@@ -12,3 +12,6 @@
 - [x] Verify Manus OAuth-protected persistence and generation paths.
 - [x] Add automated tests for campaign data, generation helpers, and export packaging.
 - [x] Verify desktop and mobile presentation, then save a completed project checkpoint.
+- [ ] Review connected GitHub repositories for compatible campaign-platform patterns and identify high-value improvements.
+- [ ] Integrate selected GitHub-informed enhancements into PulseForge AI and validate the updated workflow.
+- [ ] Publish the validated PulseForge AI project source to the selected GitHub repository.
