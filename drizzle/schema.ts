@@ -49,7 +49,24 @@ export const campaignAssets = mysqlTable("campaignAssets", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const campaignAnalytics = mysqlTable("campaignAnalytics", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  userId: int("userId").notNull(),
+  platform: mysqlEnum("platform", ["meta", "tiktok", "youtube"]).notNull(),
+  metricDate: varchar("metricDate", { length: 10 }).notNull(),
+  impressions: int("impressions").notNull().default(0),
+  engagements: int("engagements").notNull().default(0),
+  clicks: int("clicks").notNull().default(0),
+  conversions: int("conversions").notNull().default(0),
+  videoViews: int("videoViews").notNull().default(0),
+  saves: int("saves").notNull().default(0),
+  spendCents: int("spendCents").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
 export type CampaignAsset = typeof campaignAssets.$inferSelect;
+export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;

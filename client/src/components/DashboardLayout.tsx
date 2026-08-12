@@ -20,13 +20,14 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Archive, LogOut, PanelLeft, Plus, Sparkles } from "lucide-react";
+import { Archive, BarChart3, LogOut, PanelLeft, Plus, Sparkles } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 
 const menuItems = [
   { icon: Plus, label: "New campaign", path: "/" },
+  { icon: BarChart3, label: "Performance", path: "/analytics" },
   { icon: Archive, label: "Campaign library", path: "/history" },
 ];
 const SIDEBAR_WIDTH_KEY = "pulseforge-sidebar-width";

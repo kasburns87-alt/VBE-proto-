@@ -6,12 +6,15 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { generateCampaignBlueprint, generateCampaignImages, slugify } from "./campaign";
 import {
   createCampaign,
+  getAnalyticsSnapshotsForUser,
   getCampaignsForUser,
   getCampaignWithAssets,
   saveCampaignAssets,
   saveCampaignExport,
+  recordAnalyticsSnapshot,
   updateCampaignOutput,
 } from "./db";
+import { summarizeAnalytics } from "./analytics";
 import { storagePut } from "./storage";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
@@ -122,6 +125,21 @@ export const appRouter = router({
       await saveCampaignExport(ctx.user.id, input.campaignId, uploaded);
       return uploaded;
     }),
+  }),
+  analytics: router({
+    overview: protectedProcedure.query(async ({ ctx }) => summarizeAnalytics(await getAnalyticsSnapshotsForUser(ctx.user.id))),
+    record: protectedProcedure.input(z.object({
+      campaignId: z.number().int().positive(),
+      platform: z.enum(platforms),
+      metricDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD."),
+      impressions: z.number().int().min(0).max(2_000_000_000),
+      engagements: z.number().int().min(0).max(2_000_000_000),
+      clicks: z.number().int().min(0).max(2_000_000_000),
+      conversions: z.number().int().min(0).max(2_000_000_000),
+      videoViews: z.number().int().min(0).max(2_000_000_000),
+      saves: z.number().int().min(0).max(2_000_000_000),
+      spendCents: z.number().int().min(0).max(2_000_000_000),
+    })).mutation(({ ctx, input }) => recordAnalyticsSnapshot(ctx.user.id, input)),
   }),
 });
 

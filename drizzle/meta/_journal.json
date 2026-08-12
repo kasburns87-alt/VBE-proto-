@@ -15,6 +15,13 @@
       "when": 1786568317243,
       "tag": "0001_loving_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786569544721,
+      "tag": "0002_moaning_nightshade",
+      "breakpoints": true
     }
   ]
 }

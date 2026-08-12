@@ -1,6 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
+  campaignAnalytics,
   campaignAssets,
   campaigns,
   InsertUser,
@@ -156,4 +157,60 @@ export async function getCampaignWithAssets(userId: number, campaignId: number) 
     .where(and(eq(campaignAssets.campaignId, campaignId), eq(campaignAssets.userId, userId)))
     .orderBy(desc(campaignAssets.createdAt));
   return { ...campaign, assets };
+}
+
+export type AnalyticsSnapshotInput = {
+  campaignId: number;
+  platform: "meta" | "tiktok" | "youtube";
+  metricDate: string;
+  impressions: number;
+  engagements: number;
+  clicks: number;
+  conversions: number;
+  videoViews: number;
+  saves: number;
+  spendCents: number;
+};
+
+export async function recordAnalyticsSnapshot(userId: number, input: AnalyticsSnapshotInput) {
+  const db = requireDb(await getDb());
+  const [campaign] = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.id, input.campaignId), eq(campaigns.userId, userId)))
+    .limit(1);
+  if (!campaign) throw new Error("Campaign not found.");
+  await db.insert(campaignAnalytics).values({ ...input, userId });
+  const [snapshot] = await db
+    .select()
+    .from(campaignAnalytics)
+    .where(and(eq(campaignAnalytics.campaignId, input.campaignId), eq(campaignAnalytics.userId, userId)))
+    .orderBy(desc(campaignAnalytics.id))
+    .limit(1);
+  if (!snapshot) throw new Error("Analytics snapshot could not be saved.");
+  return snapshot;
+}
+
+export async function getAnalyticsSnapshotsForUser(userId: number) {
+  const db = requireDb(await getDb());
+  return db
+    .select({
+      id: campaignAnalytics.id,
+      campaignId: campaignAnalytics.campaignId,
+      campaignName: campaigns.campaignName,
+      productName: campaigns.productName,
+      platform: campaignAnalytics.platform,
+      metricDate: campaignAnalytics.metricDate,
+      impressions: campaignAnalytics.impressions,
+      engagements: campaignAnalytics.engagements,
+      clicks: campaignAnalytics.clicks,
+      conversions: campaignAnalytics.conversions,
+      videoViews: campaignAnalytics.videoViews,
+      saves: campaignAnalytics.saves,
+      spendCents: campaignAnalytics.spendCents,
+    })
+    .from(campaignAnalytics)
+    .innerJoin(campaigns, and(eq(campaigns.id, campaignAnalytics.campaignId), eq(campaigns.userId, campaignAnalytics.userId)))
+    .where(eq(campaignAnalytics.userId, userId))
+    .orderBy(desc(campaignAnalytics.metricDate), desc(campaignAnalytics.id));
 }
