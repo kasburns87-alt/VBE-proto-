@@ -148,7 +148,7 @@ export async function generateCampaignBlueprint(brief: CampaignBrief): Promise<C
   return JSON.parse(content) as CampaignBlueprint;
 }
 
-export async function generateCampaignImages(brief: CampaignBrief, blueprint: CampaignBlueprint) {
+export async function generateCampaignImages(brief: CampaignBrief, blueprint: CampaignBlueprint, owner: { userId: number; campaignId: number }) {
   const specs = CREATIVE_SPECS.filter(spec => brief.platforms.includes(spec.platform));
   return Promise.all(specs.map(async spec => {
     const direction = blueprint.platforms[spec.platform].imageDirection;
@@ -164,7 +164,7 @@ export async function generateCampaignImages(brief: CampaignBrief, blueprint: Ca
       .png({ compressionLevel: 8 })
       .toBuffer();
     const persisted = await storagePut(
-      `campaigns/generated/${slugify(brief.productName)}-${spec.platform}-${spec.width}x${spec.height}.png`,
+      `campaigns/${owner.userId}/${owner.campaignId}/generated/${slugify(brief.productName)}-${spec.platform}-${spec.width}x${spec.height}.png`,
       sizedBuffer,
       "image/png"
     );

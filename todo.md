@@ -27,3 +27,16 @@
 - [x] Review connected GitHub repositories for reusable saved-view and analytics persistence patterns.
 - [x] Add Meta, TikTok, and YouTube column-mapping presets to the verified CSV import workflow.
 - [x] Validate, publish, and push the platform mapping preset enhancement to GitHub.
+- [x] Add configurable weekly analytics PDF report generation with user-owned delivery settings and report history.
+- [ ] Add secure scheduled email delivery and validate the complete weekly reporting workflow.
+- [ ] Implement application-managed weekly email delivery using a transactional provider after secure sender credentials are configured.
+- [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
+- [x] Add an in-app communications workspace with inbound and outbound client email records.
+- [x] Add configurable client follow-up and report scheduling controls with delivery history.
+- [x] Add a client-specific assistant workspace for client information and operational task support.
+- [x] Inspect the supplied repaired source archive and reconcile any relevant changes with the active project.
+- [x] Add scoped generated-asset paths, strict storage-key validation, and bounded media/export payload validation.
+- [x] Add focused ownership, insert-determinism, storage-key, and CSV edge-case test coverage.
+- [x] Add user-scoped cost controls for campaign generation and report-email actions.
+- [x] Assess and apply safe indexing improvements after checking current production data constraints.
+- [x] Add an in-app provider setup state that keeps outgoing email and scheduled delivery safely disabled until a sender connection is configured.

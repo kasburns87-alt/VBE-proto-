@@ -1,11 +1,26 @@
 import type { Express } from "express";
 import { ENV } from "./env";
 
+export function isSafeStorageKey(key: string) {
+  return Boolean(
+    key &&
+    key.length <= 512 &&
+    !key.startsWith("/") &&
+    !key.includes("\\") &&
+    !key.split("/").some(segment => segment === ".." || segment === ".") &&
+    !/[\u0000-\u001f\u007f]/.test(key)
+  );
+}
+
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
     const key = (req.params as Record<string, string>)[0];
     if (!key) {
       res.status(400).send("Missing storage key");
+      return;
+    }
+    if (!isSafeStorageKey(key)) {
+      res.status(400).send("Invalid storage key");
       return;
     }
 

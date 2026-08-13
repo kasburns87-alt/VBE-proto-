@@ -36,6 +36,20 @@
       "when": 1786583580613,
       "tag": "0004_real_lightspeed",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1786587683604,
+      "tag": "0005_brave_stellaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1786596184907,
+      "tag": "0006_amusing_sprite",
+      "breakpoints": true
     }
   ]
 }

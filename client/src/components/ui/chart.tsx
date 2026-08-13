@@ -102,6 +102,30 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+type ChartTooltipPayloadItem = {
+  type?: string;
+  dataKey?: string | number;
+  name?: string | number;
+  value?: number | string;
+  color?: string;
+  payload: Record<string, unknown> & { fill?: string };
+};
+
+type ChartTooltipContentProps = React.ComponentProps<"div"> & {
+  active?: boolean;
+  payload?: ChartTooltipPayloadItem[];
+  label?: string | number;
+  labelClassName?: string;
+  labelFormatter?: (label: React.ReactNode, payload: ChartTooltipPayloadItem[]) => React.ReactNode;
+  formatter?: (value: number | string, name: string | number, item: ChartTooltipPayloadItem, index: number, payload: ChartTooltipPayloadItem["payload"]) => React.ReactNode;
+  hideLabel?: boolean;
+  hideIndicator?: boolean;
+  indicator?: "line" | "dot" | "dashed";
+  nameKey?: string;
+  labelKey?: string;
+  color?: string;
+};
+
 function ChartTooltipContent({
   active,
   payload,
@@ -116,14 +140,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
-}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-  React.ComponentProps<"div"> & {
-    hideLabel?: boolean;
-    hideIndicator?: boolean;
-    indicator?: "line" | "dot" | "dashed";
-    nameKey?: string;
-    labelKey?: string;
-  }) {
+}: ChartTooltipContentProps) {
   const { config } = useChart();
 
   const tooltipLabel = React.useMemo(() => {
@@ -250,14 +267,22 @@ function ChartTooltipContent({
 
 const ChartLegend = RechartsPrimitive.Legend;
 
+type ChartLegendPayloadItem = {
+  type?: string;
+  dataKey?: string | number;
+  value?: string | number;
+  color?: string;
+};
+
 function ChartLegendContent({
   className,
   hideIcon = false,
   payload,
   verticalAlign = "bottom",
   nameKey,
-}: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+}: React.ComponentProps<"div"> & {
+    payload?: ChartLegendPayloadItem[];
+    verticalAlign?: "top" | "bottom" | "middle";
     hideIcon?: boolean;
     nameKey?: string;
   }) {
@@ -276,8 +301,8 @@ function ChartLegendContent({
       )}
     >
       {payload
-        .filter(item => item.type !== "none")
-        .map(item => {
+        .filter((item: ChartLegendPayloadItem) => item.type !== "none")
+        .map((item: ChartLegendPayloadItem) => {
           const key = `${nameKey || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
 

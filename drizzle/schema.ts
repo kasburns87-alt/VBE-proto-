@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -14,7 +14,7 @@ export const users = mysqlTable("users", {
 
 export const campaigns = mysqlTable("campaigns", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   campaignName: varchar("campaignName", { length: 220 }),
   productName: varchar("productName", { length: 180 }).notNull(),
   industry: varchar("industry", { length: 140 }).notNull(),
@@ -29,12 +29,12 @@ export const campaigns = mysqlTable("campaigns", {
   exportUrl: varchar("exportUrl", { length: 700 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, table => [index("campaigns_user_updated_idx").on(table.userId, table.updatedAt)]);
 
 export const campaignAssets = mysqlTable("campaignAssets", {
   id: int("id").autoincrement().primaryKey(),
-  campaignId: int("campaignId").notNull(),
-  userId: int("userId").notNull(),
+  campaignId: int("campaignId").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   platform: mysqlEnum("platform", ["meta", "tiktok", "youtube"]).notNull(),
   assetType: mysqlEnum("assetType", ["image", "video", "audio", "copy_sheet"]).notNull(),
   format: varchar("format", { length: 120 }).notNull(),
@@ -47,12 +47,12 @@ export const campaignAssets = mysqlTable("campaignAssets", {
   durationSeconds: int("durationSeconds"),
   metadataJson: text("metadataJson"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [index("campaign_assets_owner_campaign_created_idx").on(table.userId, table.campaignId, table.createdAt)]);
 
 export const campaignAnalytics = mysqlTable("campaignAnalytics", {
   id: int("id").autoincrement().primaryKey(),
-  campaignId: int("campaignId").notNull(),
-  userId: int("userId").notNull(),
+  campaignId: int("campaignId").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   platform: mysqlEnum("platform", ["meta", "tiktok", "youtube"]).notNull(),
   metricDate: varchar("metricDate", { length: 10 }).notNull(),
   impressions: int("impressions").notNull().default(0),
@@ -63,11 +63,11 @@ export const campaignAnalytics = mysqlTable("campaignAnalytics", {
   saves: int("saves").notNull().default(0),
   spendCents: int("spendCents").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [index("campaign_analytics_owner_date_campaign_idx").on(table.userId, table.metricDate, table.campaignId)]);
 
 export const savedAnalyticsViews = mysqlTable("savedAnalyticsViews", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 120 }).notNull(),
   datePreset: varchar("datePreset", { length: 20 }).notNull(),
   startDate: varchar("startDate", { length: 10 }),
@@ -76,7 +76,125 @@ export const savedAnalyticsViews = mysqlTable("savedAnalyticsViews", {
   isDefault: int("isDefault").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [index("saved_analytics_views_owner_updated_idx").on(table.userId, table.updatedAt)]);
+
+export const clients = mysqlTable("clients", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 160 }).notNull(),
+  company: varchar("company", { length: 180 }),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 50 }),
+  title: varchar("title", { length: 140 }),
+  industry: varchar("industry", { length: 140 }),
+  status: mysqlEnum("status", ["lead", "active", "paused", "archived"]).default("lead").notNull(),
+  notes: text("notes"),
+  rapportDetails: text("rapportDetails"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  index("clients_owner_status_updated_idx").on(table.userId, table.status, table.updatedAt),
+  uniqueIndex("clients_owner_email_unique").on(table.userId, table.email),
+]);
+
+export const clientCampaigns = mysqlTable("clientCampaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: int("clientId").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  campaignId: int("campaignId").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => [
+  uniqueIndex("client_campaigns_owner_pair_unique").on(table.userId, table.clientId, table.campaignId),
+  index("client_campaigns_owner_client_idx").on(table.userId, table.clientId),
+]);
+
+export const communicationSettings = mysqlTable("communicationSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  fromAddress: varchar("fromAddress", { length: 320 }),
+  replyToAddress: varchar("replyToAddress", { length: 320 }),
+  inboundAddress: varchar("inboundAddress", { length: 320 }),
+  senderName: varchar("senderName", { length: 160 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
+
+export const clientCommunications = mysqlTable("clientCommunications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: int("clientId").references(() => clients.id, { onDelete: "set null" }),
+  direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull(),
+  channel: mysqlEnum("channel", ["email"]).default("email").notNull(),
+  status: mysqlEnum("status", ["draft", "queued", "sent", "delivered", "bounced", "received", "failed"]).notNull(),
+  senderEmail: varchar("senderEmail", { length: 320 }).notNull(),
+  recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
+  subject: varchar("subject", { length: 300 }).notNull(),
+  bodyText: text("bodyText"),
+  bodyHtml: text("bodyHtml"),
+  providerMessageId: varchar("providerMessageId", { length: 160 }),
+  inReplyTo: varchar("inReplyTo", { length: 300 }),
+  providerEventId: varchar("providerEventId", { length: 160 }),
+  sentAt: timestamp("sentAt"),
+  receivedAt: timestamp("receivedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  index("client_comms_owner_created_idx").on(table.userId, table.createdAt),
+  index("client_comms_owner_client_created_idx").on(table.userId, table.clientId, table.createdAt),
+  uniqueIndex("client_comms_provider_event_unique").on(table.providerEventId),
+]);
+
+export const clientSchedules = mysqlTable("clientSchedules", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: int("clientId").references(() => clients.id, { onDelete: "cascade" }),
+  scheduleType: mysqlEnum("scheduleType", ["follow_up", "weekly_report", "reminder"]).notNull(),
+  label: varchar("label", { length: 180 }).notNull(),
+  recipientEmail: varchar("recipientEmail", { length: 320 }),
+  timezone: varchar("timezone", { length: 80 }).notNull().default("UTC"),
+  cronExpression: varchar("cronExpression", { length: 80 }),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+  isEnabled: int("isEnabled").notNull().default(0),
+  lastRunAt: timestamp("lastRunAt"),
+  nextRunAt: timestamp("nextRunAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  index("client_schedules_owner_enabled_idx").on(table.userId, table.isEnabled),
+  uniqueIndex("client_schedules_task_uid_unique").on(table.scheduleCronTaskUid),
+]);
+
+export const reportDeliveries = mysqlTable("reportDeliveries", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: int("clientId").references(() => clients.id, { onDelete: "set null" }),
+  scheduleId: int("scheduleId").references(() => clientSchedules.id, { onDelete: "set null" }),
+  periodStart: varchar("periodStart", { length: 10 }).notNull(),
+  periodEnd: varchar("periodEnd", { length: 10 }).notNull(),
+  recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
+  status: mysqlEnum("status", ["queued", "generated", "sent", "failed", "skipped"]).notNull().default("queued"),
+  fileKey: varchar("fileKey", { length: 512 }),
+  fileUrl: varchar("fileUrl", { length: 700 }),
+  providerMessageId: varchar("providerMessageId", { length: 160 }),
+  errorMessage: text("errorMessage"),
+  idempotencyKey: varchar("idempotencyKey", { length: 180 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  sentAt: timestamp("sentAt"),
+}, table => [
+  uniqueIndex("report_deliveries_idempotency_unique").on(table.idempotencyKey),
+  index("report_deliveries_owner_created_idx").on(table.userId, table.createdAt),
+]);
+
+export const userUsageCounters = mysqlTable("userUsageCounters", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  periodKey: varchar("periodKey", { length: 7 }).notNull(),
+  campaignGenerations: int("campaignGenerations").notNull().default(0),
+  assistantRequests: int("assistantRequests").notNull().default(0),
+  reportGenerations: int("reportGenerations").notNull().default(0),
+  outboundEmails: int("outboundEmails").notNull().default(0),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [uniqueIndex("user_usage_counters_owner_period_unique").on(table.userId, table.periodKey)]);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -84,3 +202,8 @@ export type Campaign = typeof campaigns.$inferSelect;
 export type CampaignAsset = typeof campaignAssets.$inferSelect;
 export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;
 export type SavedAnalyticsView = typeof savedAnalyticsViews.$inferSelect;
+export type Client = typeof clients.$inferSelect;
+export type ClientCommunication = typeof clientCommunications.$inferSelect;
+export type ClientSchedule = typeof clientSchedules.$inferSelect;
+export type ReportDelivery = typeof reportDeliveries.$inferSelect;
+export type UserUsageCounter = typeof userUsageCounters.$inferSelect;

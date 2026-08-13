@@ -1,11 +1,13 @@
 import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { lt, sql } from "drizzle-orm";
 import {
   campaignAnalytics,
   campaignAssets,
   campaigns,
   InsertUser,
   savedAnalyticsViews,
+  userUsageCounters,
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -71,7 +73,7 @@ export type CampaignCreateInput = {
 
 export async function createCampaign(input: CampaignCreateInput) {
   const db = requireDb(await getDb());
-  await db.insert(campaigns).values({
+  const [insertResult] = await db.insert(campaigns).values({
     userId: input.userId,
     productName: input.productName,
     industry: input.industry,
@@ -81,11 +83,12 @@ export async function createCampaign(input: CampaignCreateInput) {
     platforms: JSON.stringify(input.platforms),
     briefJson: JSON.stringify(input),
   });
+  const campaignId = Number(insertResult.insertId);
+  if (!Number.isSafeInteger(campaignId) || campaignId <= 0) throw new Error("Campaign could not be created.");
   const [campaign] = await db
     .select()
     .from(campaigns)
-    .where(eq(campaigns.userId, input.userId))
-    .orderBy(desc(campaigns.id))
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.userId, input.userId)))
     .limit(1);
   if (!campaign) throw new Error("Campaign could not be created.");
   return campaign;
@@ -181,12 +184,13 @@ export async function recordAnalyticsSnapshot(userId: number, input: AnalyticsSn
     .where(and(eq(campaigns.id, input.campaignId), eq(campaigns.userId, userId)))
     .limit(1);
   if (!campaign) throw new Error("Campaign not found.");
-  await db.insert(campaignAnalytics).values({ ...input, userId });
+  const [insertResult] = await db.insert(campaignAnalytics).values({ ...input, userId });
+  const snapshotId = Number(insertResult.insertId);
+  if (!Number.isSafeInteger(snapshotId) || snapshotId <= 0) throw new Error("Analytics snapshot could not be saved.");
   const [snapshot] = await db
     .select()
     .from(campaignAnalytics)
-    .where(and(eq(campaignAnalytics.campaignId, input.campaignId), eq(campaignAnalytics.userId, userId)))
-    .orderBy(desc(campaignAnalytics.id))
+    .where(and(eq(campaignAnalytics.id, snapshotId), eq(campaignAnalytics.userId, userId)))
     .limit(1);
   if (!snapshot) throw new Error("Analytics snapshot could not be saved.");
   return snapshot;
@@ -256,7 +260,7 @@ export async function createSavedAnalyticsView(userId: number, input: SavedAnaly
       .where(and(eq(campaigns.userId, userId), inArray(campaigns.id, campaignIds)));
     if (ownedCampaigns.length !== campaignIds.length) throw new Error("A selected campaign is no longer available in your workspace.");
   }
-  await db.insert(savedAnalyticsViews).values({
+  const [insertResult] = await db.insert(savedAnalyticsViews).values({
     userId,
     name: input.name,
     datePreset: input.datePreset,
@@ -264,11 +268,12 @@ export async function createSavedAnalyticsView(userId: number, input: SavedAnaly
     endDate: input.endDate ?? null,
     campaignIdsJson: JSON.stringify(campaignIds),
   });
+  const viewId = Number(insertResult.insertId);
+  if (!Number.isSafeInteger(viewId) || viewId <= 0) throw new Error("Saved view could not be created.");
   const [savedView] = await db
     .select()
     .from(savedAnalyticsViews)
-    .where(eq(savedAnalyticsViews.userId, userId))
-    .orderBy(desc(savedAnalyticsViews.id))
+    .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)))
     .limit(1);
   if (!savedView) throw new Error("Saved view could not be created.");
   return savedView;
@@ -320,4 +325,40 @@ export async function setDefaultSavedAnalyticsView(userId: number, viewId: numbe
     .set({ isDefault: 1 })
     .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)));
   return { success: true } as const;
+}
+
+export const MONTHLY_USAGE_LIMITS = {
+  campaignGenerations: 50,
+  assistantRequests: 200,
+  reportGenerations: 200,
+  outboundEmails: 500,
+} as const;
+
+export type UsageAction = keyof typeof MONTHLY_USAGE_LIMITS;
+
+export function usagePeriodKey(reference = new Date()) {
+  return `${reference.getUTCFullYear()}-${String(reference.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+export function isUsageWithinLimit(currentCount: number, action: UsageAction) {
+  return Number.isInteger(currentCount) && currentCount >= 0 && currentCount < MONTHLY_USAGE_LIMITS[action];
+}
+
+export async function reserveMonthlyUsage(userId: number, action: UsageAction) {
+  const db = requireDb(await getDb());
+  const periodKey = usagePeriodKey();
+  await db.insert(userUsageCounters).values({ userId, periodKey }).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
+  const limit = MONTHLY_USAGE_LIMITS[action];
+  let result: { affectedRows?: number };
+  if (action === "campaignGenerations") {
+    [result] = await db.update(userUsageCounters).set({ campaignGenerations: sql`${userUsageCounters.campaignGenerations} + 1` }).where(and(eq(userUsageCounters.userId, userId), eq(userUsageCounters.periodKey, periodKey), lt(userUsageCounters.campaignGenerations, limit)));
+  } else if (action === "assistantRequests") {
+    [result] = await db.update(userUsageCounters).set({ assistantRequests: sql`${userUsageCounters.assistantRequests} + 1` }).where(and(eq(userUsageCounters.userId, userId), eq(userUsageCounters.periodKey, periodKey), lt(userUsageCounters.assistantRequests, limit)));
+  } else if (action === "reportGenerations") {
+    [result] = await db.update(userUsageCounters).set({ reportGenerations: sql`${userUsageCounters.reportGenerations} + 1` }).where(and(eq(userUsageCounters.userId, userId), eq(userUsageCounters.periodKey, periodKey), lt(userUsageCounters.reportGenerations, limit)));
+  } else {
+    [result] = await db.update(userUsageCounters).set({ outboundEmails: sql`${userUsageCounters.outboundEmails} + 1` }).where(and(eq(userUsageCounters.userId, userId), eq(userUsageCounters.periodKey, periodKey), lt(userUsageCounters.outboundEmails, limit)));
+  }
+  if (Number(result.affectedRows ?? 0) !== 1) throw new Error(`Monthly ${action} limit reached. Please try again next month.`);
+  return { periodKey, limit };
 }
