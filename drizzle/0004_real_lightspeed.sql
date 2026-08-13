@@ -1,0 +1,1 @@
+ALTER TABLE `savedAnalyticsViews` ADD `isDefault` int DEFAULT 0 NOT NULL;

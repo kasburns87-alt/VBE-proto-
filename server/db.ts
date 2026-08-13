@@ -192,6 +192,18 @@ export async function recordAnalyticsSnapshot(userId: number, input: AnalyticsSn
   return snapshot;
 }
 
+export async function recordAnalyticsSnapshots(userId: number, inputs: AnalyticsSnapshotInput[]) {
+  const db = requireDb(await getDb());
+  const campaignIds = Array.from(new Set(inputs.map(input => input.campaignId)));
+  const ownedCampaigns = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.userId, userId), inArray(campaigns.id, campaignIds)));
+  if (ownedCampaigns.length !== campaignIds.length) throw new Error("One or more imported snapshots reference an unavailable campaign.");
+  await db.insert(campaignAnalytics).values(inputs.map(input => ({ ...input, userId })));
+  return { imported: inputs.length } as const;
+}
+
 export type AnalyticsSnapshotFilters = {
   campaignIds?: number[];
   startDate?: string;
@@ -275,6 +287,37 @@ export async function deleteSavedAnalyticsView(userId: number, viewId: number) {
   const db = requireDb(await getDb());
   await db
     .delete(savedAnalyticsViews)
+    .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)));
+  return { success: true } as const;
+}
+
+export async function renameSavedAnalyticsView(userId: number, viewId: number, name: string) {
+  const db = requireDb(await getDb());
+  await db
+    .update(savedAnalyticsViews)
+    .set({ name })
+    .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)));
+  const [view] = await db
+    .select()
+    .from(savedAnalyticsViews)
+    .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)))
+    .limit(1);
+  if (!view) throw new Error("Saved view not found.");
+  return view;
+}
+
+export async function setDefaultSavedAnalyticsView(userId: number, viewId: number) {
+  const db = requireDb(await getDb());
+  const [view] = await db
+    .select({ id: savedAnalyticsViews.id })
+    .from(savedAnalyticsViews)
+    .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)))
+    .limit(1);
+  if (!view) throw new Error("Saved view not found.");
+  await db.update(savedAnalyticsViews).set({ isDefault: 0 }).where(eq(savedAnalyticsViews.userId, userId));
+  await db
+    .update(savedAnalyticsViews)
+    .set({ isDefault: 1 })
     .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)));
   return { success: true } as const;
 }

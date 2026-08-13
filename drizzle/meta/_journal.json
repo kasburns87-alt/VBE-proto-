@@ -29,6 +29,13 @@
       "when": 1786579679644,
       "tag": "0003_opposite_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786583580613,
+      "tag": "0004_real_lightspeed",
+      "breakpoints": true
     }
   ]
 }

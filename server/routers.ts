@@ -15,6 +15,9 @@ import {
   saveCampaignAssets,
   saveCampaignExport,
   recordAnalyticsSnapshot,
+  recordAnalyticsSnapshots,
+  renameSavedAnalyticsView,
+  setDefaultSavedAnalyticsView,
   updateCampaignOutput,
 } from "./db";
 import { summarizeAnalytics } from "./analytics";
@@ -32,6 +35,18 @@ const analyticsFilterSchema = z.object({
 const savedAnalyticsViewSchema = analyticsFilterSchema.safeExtend({
   name: z.string().trim().min(2).max(120),
   datePreset: z.enum(["all", "last7", "last30", "custom"]),
+});
+const analyticsSnapshotSchema = z.object({
+  campaignId: z.number().int().positive(),
+  platform: z.enum(platforms),
+  metricDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD."),
+  impressions: z.number().int().min(0).max(2_000_000_000),
+  engagements: z.number().int().min(0).max(2_000_000_000),
+  clicks: z.number().int().min(0).max(2_000_000_000),
+  conversions: z.number().int().min(0).max(2_000_000_000),
+  videoViews: z.number().int().min(0).max(2_000_000_000),
+  saves: z.number().int().min(0).max(2_000_000_000),
+  spendCents: z.number().int().min(0).max(2_000_000_000),
 });
 const briefSchema = z.object({
   productName: z.string().trim().min(2).max(180),
@@ -161,22 +176,21 @@ export const appRouter = router({
         const view = await createSavedAnalyticsView(ctx.user.id, { ...input, campaignIds: input.campaignIds ?? [] });
         return { ...view, campaignIds: decodeCampaignIds(view.campaignIdsJson) };
       }),
+      rename: protectedProcedure.input(z.object({ id: z.number().int().positive(), name: z.string().trim().min(2).max(120) })).mutation(async ({ ctx, input }) => {
+        const view = await renameSavedAnalyticsView(ctx.user.id, input.id, input.name);
+        return { ...view, campaignIds: decodeCampaignIds(view.campaignIdsJson) };
+      }),
+      setDefault: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) =>
+        setDefaultSavedAnalyticsView(ctx.user.id, input.id)
+      ),
       delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) =>
         deleteSavedAnalyticsView(ctx.user.id, input.id)
       ),
     }),
-    record: protectedProcedure.input(z.object({
-      campaignId: z.number().int().positive(),
-      platform: z.enum(platforms),
-      metricDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD."),
-      impressions: z.number().int().min(0).max(2_000_000_000),
-      engagements: z.number().int().min(0).max(2_000_000_000),
-      clicks: z.number().int().min(0).max(2_000_000_000),
-      conversions: z.number().int().min(0).max(2_000_000_000),
-      videoViews: z.number().int().min(0).max(2_000_000_000),
-      saves: z.number().int().min(0).max(2_000_000_000),
-      spendCents: z.number().int().min(0).max(2_000_000_000),
-    })).mutation(({ ctx, input }) => recordAnalyticsSnapshot(ctx.user.id, input)),
+    record: protectedProcedure.input(analyticsSnapshotSchema).mutation(({ ctx, input }) => recordAnalyticsSnapshot(ctx.user.id, input)),
+    importSnapshots: protectedProcedure.input(z.object({ snapshots: z.array(analyticsSnapshotSchema).min(1).max(1000) })).mutation(({ ctx, input }) =>
+      recordAnalyticsSnapshots(ctx.user.id, input.snapshots)
+    ),
   }),
 });
 

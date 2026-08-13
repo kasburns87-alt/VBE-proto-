@@ -73,6 +73,7 @@ export const savedAnalyticsViews = mysqlTable("savedAnalyticsViews", {
   startDate: varchar("startDate", { length: 10 }),
   endDate: varchar("endDate", { length: 10 }),
   campaignIdsJson: varchar("campaignIdsJson", { length: 80 }).notNull(),
+  isDefault: int("isDefault").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
