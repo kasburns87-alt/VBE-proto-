@@ -30,6 +30,14 @@
 - [x] Add configurable weekly analytics PDF report generation with user-owned delivery settings and report history.
 - [ ] Add secure scheduled email delivery and validate the complete weekly reporting workflow.
 - [ ] Implement application-managed weekly email delivery using a transactional provider after secure sender credentials are configured.
+- [x] Implement native Resend outbound email, lifecycle webhooks, Receiving inbound replies, threading, idempotency, unsubscribe, and suppression controls.
+- [x] Add a dedicated subdomain configuration guide with required DNS records, webhook URLs, and secure secret names.
+- [ ] Verify Resend delivery and Receiving end-to-end, then activate live schedules only after domain verification passes.
+- [x] Keep Resend sending and schedule activation disabled until the user explicitly approves activation after successful testing.
+- [ ] Provide DNS, webhook, secret-entry, and end-to-end evidence for Resend thread, idempotency, suppression, and provider-gating controls.
+- [ ] Add automated integration coverage for Resend webhook deduplication, suppression enforcement, signed unsubscribe handling, and reply-thread reconstruction.
+- [x] Add deterministic provider-gating and signed unsubscribe regression coverage without live credentials.
+- [ ] Run credentialed Resend verification for sends, lifecycle events, Receiving replies, and schedule gating; record evidence before activation.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
 - [x] Add an in-app communications workspace with inbound and outbound client email records.
 - [x] Add configurable client follow-up and report scheduling controls with delivery history.

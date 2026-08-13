@@ -10,4 +10,6 @@ export const ENV = {
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   resendFromEmail: process.env.RESEND_FROM_EMAIL ?? "",
   resendWebhookSecret: process.env.RESEND_WEBHOOK_SECRET ?? "",
+  resendDeliveryApproved: process.env.RESEND_DELIVERY_APPROVED === "true",
+  publicAppUrl: process.env.PUBLIC_APP_URL ?? "",
 };

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { parse as parseCookie } from "cookie";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -34,16 +35,20 @@ import {
   getClient,
   getClientSchedule,
   getCommunicationSettings,
+  isEmailSuppressed,
+  listEmailSuppressions,
   listClientSchedules,
   listClients,
   listCommunications,
   listReportDeliveries,
   saveCommunicationSettings,
+  removeEmailSuppression,
   setScheduleHeartbeat,
   updateClient,
   updateCommunicationStatus,
+  upsertEmailSuppression,
 } from "./clientOps";
-import { emailProviderConfigured, plainTextToEmailHtml, sendTransactionalEmail } from "./email";
+import { createUnsubscribeUrl, emailProviderConfigured, emailProviderReadiness, plainTextToEmailHtml, sendTransactionalEmail } from "./email";
 import { processWeeklyReportSchedule } from "./weeklyReports";
 import { processClientFollowUpSchedule } from "./followUps";
 
@@ -294,7 +299,8 @@ export const appRouter = router({
     communications: router({
       deliveryStatus: protectedProcedure.query(() => ({
         configured: emailProviderConfigured(),
-        provider: "transactional email",
+        provider: "Resend",
+        ...emailProviderReadiness(),
       })),
       settings: protectedProcedure.query(({ ctx }) => getCommunicationSettings(ctx.user.id)),
       saveSettings: protectedProcedure.input(z.object({
@@ -304,11 +310,24 @@ export const appRouter = router({
         senderName: z.string().trim().max(160).optional(),
       })).mutation(({ ctx, input }) => saveCommunicationSettings(ctx.user.id, input)),
       list: protectedProcedure.input(z.object({ clientId: z.number().int().positive().optional() }).optional()).query(({ ctx, input }) => listCommunications(ctx.user.id, input?.clientId)),
-      send: protectedProcedure.input(z.object({ clientId: z.number().int().positive(), subject: z.string().trim().min(2).max(300), bodyText: z.string().trim().min(1).max(20_000), inReplyTo: z.string().trim().max(300).optional() })).mutation(async ({ ctx, input }) => {
+      listSuppressions: protectedProcedure.query(({ ctx }) => listEmailSuppressions(ctx.user.id)),
+      suppress: protectedProcedure.input(z.object({ email: z.string().trim().email().max(320), reason: z.enum(["unsubscribe", "bounce", "complaint", "manual"]).default("manual") })).mutation(({ ctx, input }) => upsertEmailSuppression({ userId: ctx.user.id, ...input })),
+      unsuppress: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+        await removeEmailSuppression(ctx.user.id, input.id);
+        return { success: true } as const;
+      }),
+      send: protectedProcedure.input(z.object({ clientId: z.number().int().positive(), subject: z.string().trim().min(2).max(300), bodyText: z.string().trim().min(1).max(20_000), inReplyTo: z.string().trim().max(300).optional(), referencesHeader: z.string().trim().max(4_000).optional(), idempotencyKey: z.string().trim().min(16).max(180) })).mutation(async ({ ctx, input }) => {
         const [client, settings] = await Promise.all([getClient(ctx.user.id, input.clientId), getCommunicationSettings(ctx.user.id)]);
+        const suppression = await isEmailSuppressed(ctx.user.id, client.email);
+        if (suppression) throw new Error(`This recipient is suppressed for ${suppression.reason} and cannot receive new email.`);
         const senderEmail = ENV.resendFromEmail || settings?.fromAddress;
         if (!senderEmail) throw new Error("Set up a verified transactional sender before sending client email.");
         await reserveMonthlyUsage(ctx.user.id, "outboundEmails");
+        const senderDomain = senderEmail.split("@")[1];
+        if (!senderDomain) throw new Error("The sender address must include a verified domain.");
+        const localId = createHash("sha256").update(`${ctx.user.id}:${input.idempotencyKey}`).digest("hex").slice(0, 32);
+        const messageId = `<pulseforge-${localId}@${senderDomain}>`;
+        const threadKey = input.inReplyTo || messageId;
         const queued = await createOutboundCommunication(ctx.user.id, {
           clientId: client.id,
           senderEmail,
@@ -317,6 +336,9 @@ export const appRouter = router({
           bodyText: input.bodyText,
           bodyHtml: plainTextToEmailHtml(input.bodyText),
           inReplyTo: input.inReplyTo,
+          referencesHeader: input.referencesHeader || input.inReplyTo,
+          threadKey,
+          idempotencyKey: input.idempotencyKey,
         });
         try {
           const providerMessageId = await sendTransactionalEmail({
@@ -325,9 +347,13 @@ export const appRouter = router({
             text: input.bodyText,
             html: plainTextToEmailHtml(input.bodyText),
             replyTo: settings?.replyToAddress || undefined,
-            idempotencyKey: `client-email:${queued.id}`,
+            idempotencyKey: input.idempotencyKey,
+            messageId,
+            inReplyTo: input.inReplyTo,
+            referencesHeader: input.referencesHeader || input.inReplyTo,
+            unsubscribeUrl: createUnsubscribeUrl(ctx.user.id, client.email),
           });
-          await updateCommunicationStatus(ctx.user.id, queued.id, { status: "sent", providerMessageId });
+          await updateCommunicationStatus(ctx.user.id, queued.id, { status: "sent", providerMessageId, messageId });
           return { ...queued, status: "sent", providerMessageId };
         } catch (error) {
           await updateCommunicationStatus(ctx.user.id, queued.id, { status: "failed", errorMessage: error instanceof Error ? error.message : "Email send failed." });
@@ -340,6 +366,7 @@ export const appRouter = router({
       create: protectedProcedure.input(scheduleSchema).mutation(({ ctx, input }) => createClientSchedule(ctx.user.id, input)),
       activate: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
         const schedule = await getClientSchedule(ctx.user.id, input.id);
+        if (!emailProviderConfigured()) throw new Error("Live schedule activation is disabled until Resend credentials, domain verification, and explicit delivery approval are configured.");
         if (!schedule.cronExpression || !schedule.recipientEmail) throw new Error("A report schedule needs a recipient and a 6-field UTC cron expression.");
         const sessionToken = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
         const path = schedule.scheduleType === "weekly_report" ? "/api/scheduled/weekly-report" : "/api/scheduled/client-follow-up";

@@ -1,11 +1,20 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { Webhook } from "svix";
 import { ENV } from "./_core/env";
 
 export function emailProviderConfigured() {
-  return Boolean(ENV.resendApiKey && ENV.resendFromEmail);
+  return Boolean(ENV.resendApiKey && ENV.resendFromEmail && ENV.resendDeliveryApproved);
 }
 
-export async function sendTransactionalEmail(input: { to: string; subject: string; html: string; text: string; replyTo?: string; idempotencyKey: string; attachment?: { filename: string; content: string } }) {
+export function emailProviderReadiness() {
+  return {
+    credentialsPresent: Boolean(ENV.resendApiKey && ENV.resendFromEmail),
+    deliveryApproved: ENV.resendDeliveryApproved,
+    enabled: emailProviderConfigured(),
+  };
+}
+
+export async function sendTransactionalEmail(input: { to: string; subject: string; html: string; text: string; replyTo?: string; idempotencyKey: string; messageId?: string; inReplyTo?: string; referencesHeader?: string; unsubscribeUrl?: string; attachment?: { filename: string; content: string } }) {
   if (!emailProviderConfigured()) throw new Error("Email delivery is not configured. Add a transactional email API key and verified sender address first.");
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -21,6 +30,12 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
       html: input.html,
       text: input.text,
       reply_to: input.replyTo || undefined,
+      headers: {
+        ...(input.messageId ? { "Message-ID": input.messageId } : {}),
+        ...(input.inReplyTo ? { "In-Reply-To": input.inReplyTo } : {}),
+        ...(input.referencesHeader ? { References: input.referencesHeader } : {}),
+        ...(input.unsubscribeUrl ? { "List-Unsubscribe": `<${input.unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}),
+      },
       attachments: input.attachment ? [{ filename: input.attachment.filename, content: input.attachment.content }] : undefined,
       tags: [{ name: "source", value: "pulseforge" }],
     }),
@@ -50,4 +65,24 @@ export function verifyResendWebhook(payload: string, headers: { id?: string; tim
 export function plainTextToEmailHtml(value: string) {
   const escaped = value.replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" }[character] || character));
   return `<div style="font-family:Arial,sans-serif;white-space:pre-wrap;line-height:1.6;color:#201c28">${escaped}</div>`;
+}
+
+function unsubscribeSignature(userId: number, email: string) {
+  return createHmac("sha256", ENV.cookieSecret).update(`${userId}:${email.toLowerCase()}`).digest("hex");
+}
+
+export function createUnsubscribeUrl(userId: number, email: string) {
+  if (!ENV.publicAppUrl || !ENV.cookieSecret) return undefined;
+  const url = new URL("/api/unsubscribe", ENV.publicAppUrl);
+  url.searchParams.set("u", String(userId));
+  url.searchParams.set("e", email.toLowerCase());
+  url.searchParams.set("s", unsubscribeSignature(userId, email));
+  return url.toString();
+}
+
+export function verifyUnsubscribeSignature(userId: number, email: string, signature: string) {
+  if (!ENV.cookieSecret) return false;
+  const expected = Buffer.from(unsubscribeSignature(userId, email));
+  const received = Buffer.from(signature);
+  return expected.byteLength === received.byteLength && timingSafeEqual(expected, received);
 }

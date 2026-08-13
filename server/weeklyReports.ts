@@ -8,9 +8,10 @@ import {
   getClientSchedule,
   getCommunicationSettings,
   getScheduleByTaskUid,
+  isEmailSuppressed,
   updateReportDelivery,
 } from "./clientOps";
-import { sendTransactionalEmail } from "./email";
+import { createUnsubscribeUrl, sendTransactionalEmail } from "./email";
 import { storagePut } from "./storage";
 
 function isoDate(value: Date) {
@@ -122,6 +123,8 @@ export async function processWeeklyReportSchedule(schedule: { id: number; userId
     const uploaded = await storagePut(`reports/${schedule.userId}/${schedule.id}/${endDate}.pdf`, pdf, "application/pdf");
     await updateReportDelivery(schedule.userId, delivery.id, { status: "generated", fileKey: uploaded.key, fileUrl: uploaded.url });
     if (!options.deliver) return { ...delivery, status: "generated", fileKey: uploaded.key, fileUrl: uploaded.url };
+    const suppression = await isEmailSuppressed(schedule.userId, schedule.recipientEmail);
+    if (suppression) throw new Error(`This recipient is suppressed for ${suppression.reason} and cannot receive weekly reports.`);
     const settings = await getCommunicationSettings(schedule.userId);
     const messageId = await sendTransactionalEmail({
       to: schedule.recipientEmail,
@@ -130,6 +133,7 @@ export async function processWeeklyReportSchedule(schedule: { id: number; userId
       html: `<p>Your PulseForge weekly report for <strong>${startDate} to ${endDate}</strong> is attached.</p><p>This summary contains verified analytics snapshots only.</p>`,
       replyTo: settings?.replyToAddress || undefined,
       idempotencyKey,
+      unsubscribeUrl: createUnsubscribeUrl(schedule.userId, schedule.recipientEmail),
       attachment: { filename: `pulseforge-weekly-report-${endDate}.pdf`, content: pdf.toString("base64") },
     });
     await updateReportDelivery(schedule.userId, delivery.id, { status: "sent", fileKey: uploaded.key, fileUrl: uploaded.url, providerMessageId: messageId });

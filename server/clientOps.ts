@@ -6,6 +6,8 @@ import {
   clients,
   clientSchedules,
   communicationSettings,
+  emailSuppressions,
+  emailWebhookEvents,
   reportDeliveries,
 } from "../drizzle/schema";
 import { getDb } from "./db";
@@ -135,9 +137,11 @@ export async function listCommunications(userId: number, clientId?: number) {
   return db.select().from(clientCommunications).where(and(...conditions)).orderBy(desc(clientCommunications.createdAt));
 }
 
-export async function createOutboundCommunication(userId: number, input: { clientId: number; senderEmail: string; recipientEmail: string; subject: string; bodyText: string; bodyHtml: string; inReplyTo?: string }) {
+export async function createOutboundCommunication(userId: number, input: { clientId: number; senderEmail: string; recipientEmail: string; subject: string; bodyText: string; bodyHtml: string; inReplyTo?: string; referencesHeader?: string; threadKey: string; idempotencyKey: string }) {
   const db = requireDb(await getDb());
   await getClient(userId, input.clientId);
+  const [existing] = await db.select().from(clientCommunications).where(and(eq(clientCommunications.userId, userId), eq(clientCommunications.idempotencyKey, input.idempotencyKey))).limit(1);
+  if (existing) return existing;
   const [insertResult] = await db.insert(clientCommunications).values({
     userId,
     clientId: input.clientId,
@@ -149,6 +153,9 @@ export async function createOutboundCommunication(userId: number, input: { clien
     bodyText: input.bodyText,
     bodyHtml: input.bodyHtml,
     inReplyTo: input.inReplyTo || null,
+    referencesHeader: input.referencesHeader || null,
+    threadKey: input.threadKey,
+    idempotencyKey: input.idempotencyKey,
   });
   const id = Number(insertResult.insertId);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Outbound email could not be queued.");
@@ -157,17 +164,19 @@ export async function createOutboundCommunication(userId: number, input: { clien
   return communication;
 }
 
-export async function updateCommunicationStatus(userId: number, communicationId: number, patch: { status: "sent" | "delivered" | "bounced" | "failed"; providerMessageId?: string; errorMessage?: string }) {
+export async function updateCommunicationStatus(userId: number, communicationId: number, patch: { status: "sent" | "delivered" | "bounced" | "complained" | "suppressed" | "unsubscribed" | "failed"; providerMessageId?: string; messageId?: string; providerEventId?: string; errorMessage?: string }) {
   const db = requireDb(await getDb());
   await db.update(clientCommunications).set({
     status: patch.status,
     providerMessageId: patch.providerMessageId || undefined,
+    messageId: patch.messageId || undefined,
+    providerEventId: patch.providerEventId || undefined,
     sentAt: patch.status === "sent" ? new Date() : undefined,
     bodyText: patch.errorMessage ? `Delivery error: ${patch.errorMessage}` : undefined,
   }).where(and(eq(clientCommunications.id, communicationId), eq(clientCommunications.userId, userId)));
 }
 
-export async function recordInboundCommunication(input: { userId: number; clientId: number | null; senderEmail: string; recipientEmail: string; subject: string; bodyText?: string; bodyHtml?: string; providerMessageId: string; providerEventId: string; inReplyTo?: string; receivedAt: Date }) {
+export async function recordInboundCommunication(input: { userId: number; clientId: number | null; senderEmail: string; recipientEmail: string; subject: string; bodyText?: string; bodyHtml?: string; providerMessageId: string; providerEventId: string; messageId?: string; inReplyTo?: string; referencesHeader?: string; threadKey: string; receivedAt: Date }) {
   const db = requireDb(await getDb());
   const [existing] = await db.select().from(clientCommunications).where(eq(clientCommunications.providerEventId, input.providerEventId)).limit(1);
   if (existing) return existing;
@@ -183,7 +192,10 @@ export async function recordInboundCommunication(input: { userId: number; client
     bodyHtml: input.bodyHtml || null,
     providerMessageId: input.providerMessageId,
     providerEventId: input.providerEventId,
+    messageId: input.messageId || null,
     inReplyTo: input.inReplyTo || null,
+    referencesHeader: input.referencesHeader || null,
+    threadKey: input.threadKey,
     receivedAt: input.receivedAt,
   });
   const id = Number(insertResult.insertId);
@@ -202,6 +214,66 @@ export async function findClientByEmail(userId: number, email: string) {
   const db = requireDb(await getDb());
   const [client] = await db.select().from(clients).where(and(eq(clients.userId, userId), eq(clients.email, email.toLowerCase()))).limit(1);
   return client || null;
+}
+
+export async function getCommunicationByProviderMessageId(providerMessageId: string) {
+  const db = requireDb(await getDb());
+  const [communication] = await db.select().from(clientCommunications).where(eq(clientCommunications.providerMessageId, providerMessageId)).limit(1);
+  return communication || null;
+}
+
+export async function getCommunicationByMessageId(userId: number, messageId: string) {
+  const db = requireDb(await getDb());
+  const [communication] = await db.select().from(clientCommunications).where(and(eq(clientCommunications.userId, userId), eq(clientCommunications.messageId, messageId))).limit(1);
+  return communication || null;
+}
+
+export async function recordEmailWebhookEvent(input: { providerEventId: string; providerMessageId?: string; eventType: string; userId?: number | null; communicationId?: number | null; payloadJson: string }) {
+  const db = requireDb(await getDb());
+  const [existing] = await db.select().from(emailWebhookEvents).where(eq(emailWebhookEvents.providerEventId, input.providerEventId)).limit(1);
+  if (existing) return { event: existing, created: false };
+  const [insertResult] = await db.insert(emailWebhookEvents).values({
+    providerEventId: input.providerEventId,
+    providerMessageId: input.providerMessageId || null,
+    eventType: input.eventType,
+    userId: input.userId || null,
+    communicationId: input.communicationId || null,
+    payloadJson: input.payloadJson,
+  });
+  const eventId = Number(insertResult.insertId);
+  const [event] = await db.select().from(emailWebhookEvents).where(eq(emailWebhookEvents.id, eventId)).limit(1);
+  if (!event) throw new Error("Webhook event could not be recorded.");
+  return { event, created: true };
+}
+
+export async function finalizeEmailWebhookEvent(eventId: number, patch: { status: "processed" | "ignored" | "failed"; errorMessage?: string }) {
+  const db = requireDb(await getDb());
+  await db.update(emailWebhookEvents).set({ status: patch.status, errorMessage: patch.errorMessage || null, processedAt: new Date() }).where(eq(emailWebhookEvents.id, eventId));
+}
+
+export async function isEmailSuppressed(userId: number, email: string) {
+  const db = requireDb(await getDb());
+  const [suppression] = await db.select().from(emailSuppressions).where(and(eq(emailSuppressions.userId, userId), eq(emailSuppressions.email, email.toLowerCase()))).limit(1);
+  return suppression || null;
+}
+
+export async function upsertEmailSuppression(input: { userId: number; email: string; reason: "unsubscribe" | "bounce" | "complaint" | "manual"; sourceEventId?: string }) {
+  const db = requireDb(await getDb());
+  const normalizedEmail = input.email.toLowerCase();
+  await db.insert(emailSuppressions).values({ userId: input.userId, email: normalizedEmail, reason: input.reason, sourceEventId: input.sourceEventId || null }).onDuplicateKeyUpdate({ set: { reason: input.reason, sourceEventId: input.sourceEventId || null, updatedAt: new Date() } });
+  const [suppression] = await db.select().from(emailSuppressions).where(and(eq(emailSuppressions.userId, input.userId), eq(emailSuppressions.email, normalizedEmail))).limit(1);
+  if (!suppression) throw new Error("Email suppression could not be saved.");
+  return suppression;
+}
+
+export async function listEmailSuppressions(userId: number) {
+  const db = requireDb(await getDb());
+  return db.select().from(emailSuppressions).where(eq(emailSuppressions.userId, userId)).orderBy(desc(emailSuppressions.updatedAt));
+}
+
+export async function removeEmailSuppression(userId: number, suppressionId: number) {
+  const db = requireDb(await getDb());
+  await db.delete(emailSuppressions).where(and(eq(emailSuppressions.id, suppressionId), eq(emailSuppressions.userId, userId)));
 }
 
 export type ScheduleInput = {

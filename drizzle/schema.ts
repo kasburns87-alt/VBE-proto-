@@ -125,14 +125,18 @@ export const clientCommunications = mysqlTable("clientCommunications", {
   clientId: int("clientId").references(() => clients.id, { onDelete: "set null" }),
   direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull(),
   channel: mysqlEnum("channel", ["email"]).default("email").notNull(),
-  status: mysqlEnum("status", ["draft", "queued", "sent", "delivered", "bounced", "received", "failed"]).notNull(),
+  status: mysqlEnum("status", ["draft", "queued", "sent", "delivered", "bounced", "complained", "suppressed", "unsubscribed", "received", "failed"]).notNull(),
   senderEmail: varchar("senderEmail", { length: 320 }).notNull(),
   recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
   subject: varchar("subject", { length: 300 }).notNull(),
   bodyText: text("bodyText"),
   bodyHtml: text("bodyHtml"),
   providerMessageId: varchar("providerMessageId", { length: 160 }),
+  messageId: varchar("messageId", { length: 320 }),
   inReplyTo: varchar("inReplyTo", { length: 300 }),
+  referencesHeader: text("referencesHeader"),
+  threadKey: varchar("threadKey", { length: 320 }),
+  idempotencyKey: varchar("idempotencyKey", { length: 180 }),
   providerEventId: varchar("providerEventId", { length: 160 }),
   sentAt: timestamp("sentAt"),
   receivedAt: timestamp("receivedAt"),
@@ -142,6 +146,37 @@ export const clientCommunications = mysqlTable("clientCommunications", {
   index("client_comms_owner_created_idx").on(table.userId, table.createdAt),
   index("client_comms_owner_client_created_idx").on(table.userId, table.clientId, table.createdAt),
   uniqueIndex("client_comms_provider_event_unique").on(table.providerEventId),
+  uniqueIndex("client_comms_idempotency_unique").on(table.idempotencyKey),
+  index("client_comms_owner_thread_idx").on(table.userId, table.threadKey, table.createdAt),
+]);
+
+export const emailWebhookEvents = mysqlTable("emailWebhookEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  providerEventId: varchar("providerEventId", { length: 160 }).notNull(),
+  providerMessageId: varchar("providerMessageId", { length: 160 }),
+  eventType: varchar("eventType", { length: 80 }).notNull(),
+  userId: int("userId").references(() => users.id, { onDelete: "set null" }),
+  communicationId: int("communicationId").references(() => clientCommunications.id, { onDelete: "set null" }),
+  payloadJson: text("payloadJson").notNull(),
+  status: mysqlEnum("status", ["received", "processed", "ignored", "failed"]).notNull().default("received"),
+  errorMessage: text("errorMessage"),
+  receivedAt: timestamp("receivedAt").defaultNow().notNull(),
+  processedAt: timestamp("processedAt"),
+}, table => [
+  uniqueIndex("email_webhook_events_provider_event_unique").on(table.providerEventId),
+  index("email_webhook_events_owner_created_idx").on(table.userId, table.receivedAt),
+]);
+
+export const emailSuppressions = mysqlTable("emailSuppressions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 320 }).notNull(),
+  reason: mysqlEnum("reason", ["unsubscribe", "bounce", "complaint", "manual"]).notNull(),
+  sourceEventId: varchar("sourceEventId", { length: 160 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  uniqueIndex("email_suppressions_owner_email_unique").on(table.userId, table.email),
 ]);
 
 export const clientSchedules = mysqlTable("clientSchedules", {
@@ -204,6 +239,8 @@ export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;
 export type SavedAnalyticsView = typeof savedAnalyticsViews.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type ClientCommunication = typeof clientCommunications.$inferSelect;
+export type EmailWebhookEvent = typeof emailWebhookEvents.$inferSelect;
+export type EmailSuppression = typeof emailSuppressions.$inferSelect;
 export type ClientSchedule = typeof clientSchedules.$inferSelect;
 export type ReportDelivery = typeof reportDeliveries.$inferSelect;
 export type UserUsageCounter = typeof userUsageCounters.$inferSelect;
