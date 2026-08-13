@@ -18,6 +18,14 @@ import { summarizeAnalytics } from "./analytics";
 import { storagePut } from "./storage";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
+const analyticsFilterSchema = z.object({
+  campaignIds: z.array(z.number().int().positive()).max(2).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").optional(),
+}).refine(value => !value.startDate || !value.endDate || value.startDate <= value.endDate, {
+  message: "The start date must not be after the end date.",
+  path: ["endDate"],
+});
 const briefSchema = z.object({
   productName: z.string().trim().min(2).max(180),
   industry: z.string().trim().min(2).max(140),
@@ -127,7 +135,7 @@ export const appRouter = router({
     }),
   }),
   analytics: router({
-    overview: protectedProcedure.query(async ({ ctx }) => summarizeAnalytics(await getAnalyticsSnapshotsForUser(ctx.user.id))),
+    overview: protectedProcedure.input(analyticsFilterSchema).query(async ({ ctx, input }) => summarizeAnalytics(await getAnalyticsSnapshotsForUser(ctx.user.id, input))),
     record: protectedProcedure.input(z.object({
       campaignId: z.number().int().positive(),
       platform: z.enum(platforms),

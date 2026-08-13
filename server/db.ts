@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   campaignAnalytics,
@@ -191,8 +191,18 @@ export async function recordAnalyticsSnapshot(userId: number, input: AnalyticsSn
   return snapshot;
 }
 
-export async function getAnalyticsSnapshotsForUser(userId: number) {
+export type AnalyticsSnapshotFilters = {
+  campaignIds?: number[];
+  startDate?: string;
+  endDate?: string;
+};
+
+export async function getAnalyticsSnapshotsForUser(userId: number, filters: AnalyticsSnapshotFilters = {}) {
   const db = requireDb(await getDb());
+  const conditions = [eq(campaignAnalytics.userId, userId)];
+  if (filters.campaignIds?.length) conditions.push(inArray(campaignAnalytics.campaignId, filters.campaignIds));
+  if (filters.startDate) conditions.push(gte(campaignAnalytics.metricDate, filters.startDate));
+  if (filters.endDate) conditions.push(lte(campaignAnalytics.metricDate, filters.endDate));
   return db
     .select({
       id: campaignAnalytics.id,
@@ -211,6 +221,6 @@ export async function getAnalyticsSnapshotsForUser(userId: number) {
     })
     .from(campaignAnalytics)
     .innerJoin(campaigns, and(eq(campaigns.id, campaignAnalytics.campaignId), eq(campaigns.userId, campaignAnalytics.userId)))
-    .where(eq(campaignAnalytics.userId, userId))
+    .where(and(...conditions))
     .orderBy(desc(campaignAnalytics.metricDate), desc(campaignAnalytics.id));
 }

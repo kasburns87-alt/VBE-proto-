@@ -19,3 +19,5 @@
 - [x] Design and build a post-launch cross-platform campaign analytics dashboard with performance and engagement visualizations.
 - [x] Validate, publish, and push the analytics dashboard enhancement to GitHub.
 - [x] Add actionable performance interpretation to the analytics workspace and validate the extended experience.
+- [x] Add date-range filtering and campaign comparison controls to analyze verified performance over selected periods.
+- [ ] Validate, publish, and push the filtered analytics enhancement to GitHub.
