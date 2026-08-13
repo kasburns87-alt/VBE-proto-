@@ -39,7 +39,6 @@ import {
   getCommunicationSettings,
   getOperationsStatus,
   purgeExpiredClientRecords,
-  assertRecipientCanReceiveEmail,
   isEmailSuppressed,
   listEmailSuppressions,
   listClientSchedules,
@@ -55,6 +54,7 @@ import {
 } from "./clientOps";
 import { createUnsubscribeUrl, emailProviderConfigured, emailProviderReadiness, plainTextToEmailHtml, sendTransactionalEmail } from "./email";
 import { createNativeMessageIdentifiers } from "./resendLifecycle";
+import { assertManualEmailCanSend } from "./manualEmailPolicy";
 import { processWeeklyReportSchedule } from "./weeklyReports";
 import { processClientFollowUpSchedule } from "./followUps";
 
@@ -330,7 +330,7 @@ export const appRouter = router({
       }),
       send: protectedProcedure.input(z.object({ clientId: z.number().int().positive(), subject: z.string().trim().min(2).max(300), bodyText: z.string().trim().min(1).max(20_000), inReplyTo: z.string().trim().max(300).optional(), referencesHeader: z.string().trim().max(4_000).optional(), idempotencyKey: z.string().trim().min(16).max(180) })).mutation(async ({ ctx, input }) => {
         const [client, settings] = await Promise.all([getClient(ctx.user.id, input.clientId), getCommunicationSettings(ctx.user.id)]);
-        assertRecipientCanReceiveEmail(await isEmailSuppressed(ctx.user.id, client.email));
+        await assertManualEmailCanSend(ctx.user.id, client.email);
         const senderEmail = ENV.resendFromEmail || settings?.fromAddress;
         if (!senderEmail) throw new Error("Set up a verified transactional sender before sending client email.");
         await reserveMonthlyUsage(ctx.user.id, "outboundEmails");

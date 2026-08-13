@@ -37,7 +37,7 @@
 - [ ] Provide DNS, webhook, secret-entry, and end-to-end evidence for Resend thread, idempotency, suppression, and provider-gating controls.
 - [x] Add automated integration coverage for Resend webhook deduplication, suppression enforcement, signed unsubscribe handling, and reply-thread reconstruction.
 - [x] Add endpoint-level tests for duplicate Resend webhook IDs, suppression blocking, signed unsubscribe requests, and inbound reply-thread reconstruction.
-- [ ] Add direct tests proving suppression blocks manual sends, scheduled follow-ups, and weekly report delivery.
+- [x] Add direct tests proving suppression blocks manual sends, scheduled follow-ups, and weekly report delivery.
 - [x] Add configurable retention and user-controlled deletion for client communications and generated report records.
 - [x] Complete and validate user-controlled client-data deletion for linked communications, schedules, reports, and campaign links.
 - [x] Add configurable retention policy and purge behavior for client communications and generated report records.
