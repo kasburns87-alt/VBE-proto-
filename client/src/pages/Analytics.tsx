@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Activity, AlertTriangle, ArrowUpRight, BarChart3, Bookmark, BrainCircuit, CalendarRange, ChartNoAxesCombined, CircleDollarSign, Eye, FileUp, GitCompareArrows, Layers3, MousePointerClick, Pencil, Pin, Plus, RefreshCw, Save, Sparkles, Target, Trash2, TrendingUp, Video, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearch } from "wouter";
 
 type Platform = "meta" | "tiktok" | "youtube";
 
@@ -24,6 +25,9 @@ const today = new Date().toISOString().slice(0, 10);
 const datePresetLabels: Record<DatePreset, string> = { all: "All time", last7: "Last 7 days", last30: "Last 30 days", custom: "Custom range" };
 
 export default function Analytics() {
+  const search = useSearch();
+  const requestedMapping = new URLSearchParams(search).get("mapping");
+  const initialMapping: CsvMappingPreset = requestedMapping === "meta" || requestedMapping === "tiktok" || requestedMapping === "youtube" || requestedMapping === "auto" ? requestedMapping : "auto";
   const utils = trpc.useUtils();
   const campaigns = trpc.campaign.list.useQuery();
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
@@ -43,10 +47,10 @@ export default function Analytics() {
   const importSnapshots = trpc.analytics.importSnapshots.useMutation({ onSuccess: result => { void utils.analytics.overview.invalidate(); toast.success(`${result.imported} verified snapshot${result.imported === 1 ? "" : "s"} imported.`); } });
   const [showForm, setShowForm] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showCsvDialog, setShowCsvDialog] = useState(false);
+  const [showCsvDialog, setShowCsvDialog] = useState(() => new URLSearchParams(search).get("import") === "1");
   const [csvText, setCsvText] = useState("");
   const [csvFallbackCampaignId, setCsvFallbackCampaignId] = useState("");
-  const [csvMappingPreset, setCsvMappingPreset] = useState<CsvMappingPreset>("auto");
+  const [csvMappingPreset, setCsvMappingPreset] = useState<CsvMappingPreset>(initialMapping);
   const [viewName, setViewName] = useState("");
   const [editingView, setEditingView] = useState<any | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
