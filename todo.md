@@ -25,3 +25,5 @@
 - [x] Validate, publish, and push the saved comparison view enhancement to GitHub.
 - [x] Publish the current editable-view and CSV-import enhancement work-in-progress to GitHub before implementation resumes.
 - [x] Review connected GitHub repositories for reusable saved-view and analytics persistence patterns.
+- [x] Add Meta, TikTok, and YouTube column-mapping presets to the verified CSV import workflow.
+- [ ] Validate, publish, and push the platform mapping preset enhancement to GitHub.
