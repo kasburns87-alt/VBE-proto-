@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type CommunicationLifecycleStatus = "sent" | "delivered" | "bounced" | "complained" | "suppressed" | "failed";
 
 export function mapResendLifecycleEvent(eventType: string): CommunicationLifecycleStatus | null {
@@ -27,4 +29,18 @@ export function getHeaderValue(headers: Record<string, string> | undefined, name
 
 export function replyCandidates(inReplyTo?: string, referencesHeader?: string) {
   return [inReplyTo, ...(referencesHeader || "").split(/\s+/).reverse()].filter((value): value is string => Boolean(value));
+}
+
+export function createNativeMessageIdentifiers(input: { userId: number; idempotencyKey: string; senderDomain: string; inReplyTo?: string; referencesHeader?: string }) {
+  const digest = createHash("sha256").update(`${input.userId}:${input.idempotencyKey}`).digest("hex").slice(0, 32);
+  const messageId = `<pulseforge-${digest}@${input.senderDomain}>`;
+  return {
+    messageId,
+    threadKey: input.inReplyTo || messageId,
+    referencesHeader: input.referencesHeader || input.inReplyTo,
+  };
+}
+
+export function shouldProcessWebhookEvent(created: boolean) {
+  return created;
 }

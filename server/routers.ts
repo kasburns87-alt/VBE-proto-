@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { createHash } from "node:crypto";
 import { parse as parseCookie } from "cookie";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -35,6 +34,7 @@ import {
   getClient,
   getClientSchedule,
   getCommunicationSettings,
+  assertRecipientCanReceiveEmail,
   isEmailSuppressed,
   listEmailSuppressions,
   listClientSchedules,
@@ -49,6 +49,7 @@ import {
   upsertEmailSuppression,
 } from "./clientOps";
 import { createUnsubscribeUrl, emailProviderConfigured, emailProviderReadiness, plainTextToEmailHtml, sendTransactionalEmail } from "./email";
+import { createNativeMessageIdentifiers } from "./resendLifecycle";
 import { processWeeklyReportSchedule } from "./weeklyReports";
 import { processClientFollowUpSchedule } from "./followUps";
 
@@ -318,16 +319,13 @@ export const appRouter = router({
       }),
       send: protectedProcedure.input(z.object({ clientId: z.number().int().positive(), subject: z.string().trim().min(2).max(300), bodyText: z.string().trim().min(1).max(20_000), inReplyTo: z.string().trim().max(300).optional(), referencesHeader: z.string().trim().max(4_000).optional(), idempotencyKey: z.string().trim().min(16).max(180) })).mutation(async ({ ctx, input }) => {
         const [client, settings] = await Promise.all([getClient(ctx.user.id, input.clientId), getCommunicationSettings(ctx.user.id)]);
-        const suppression = await isEmailSuppressed(ctx.user.id, client.email);
-        if (suppression) throw new Error(`This recipient is suppressed for ${suppression.reason} and cannot receive new email.`);
+        assertRecipientCanReceiveEmail(await isEmailSuppressed(ctx.user.id, client.email));
         const senderEmail = ENV.resendFromEmail || settings?.fromAddress;
         if (!senderEmail) throw new Error("Set up a verified transactional sender before sending client email.");
         await reserveMonthlyUsage(ctx.user.id, "outboundEmails");
         const senderDomain = senderEmail.split("@")[1];
         if (!senderDomain) throw new Error("The sender address must include a verified domain.");
-        const localId = createHash("sha256").update(`${ctx.user.id}:${input.idempotencyKey}`).digest("hex").slice(0, 32);
-        const messageId = `<pulseforge-${localId}@${senderDomain}>`;
-        const threadKey = input.inReplyTo || messageId;
+        const nativeIdentifiers = createNativeMessageIdentifiers({ userId: ctx.user.id, idempotencyKey: input.idempotencyKey, senderDomain, inReplyTo: input.inReplyTo, referencesHeader: input.referencesHeader });
         const queued = await createOutboundCommunication(ctx.user.id, {
           clientId: client.id,
           senderEmail,
@@ -336,8 +334,8 @@ export const appRouter = router({
           bodyText: input.bodyText,
           bodyHtml: plainTextToEmailHtml(input.bodyText),
           inReplyTo: input.inReplyTo,
-          referencesHeader: input.referencesHeader || input.inReplyTo,
-          threadKey,
+          referencesHeader: nativeIdentifiers.referencesHeader,
+          threadKey: nativeIdentifiers.threadKey,
           idempotencyKey: input.idempotencyKey,
         });
         try {
@@ -348,12 +346,12 @@ export const appRouter = router({
             html: plainTextToEmailHtml(input.bodyText),
             replyTo: settings?.replyToAddress || undefined,
             idempotencyKey: input.idempotencyKey,
-            messageId,
+            messageId: nativeIdentifiers.messageId,
             inReplyTo: input.inReplyTo,
-            referencesHeader: input.referencesHeader || input.inReplyTo,
+            referencesHeader: nativeIdentifiers.referencesHeader,
             unsubscribeUrl: createUnsubscribeUrl(ctx.user.id, client.email),
           });
-          await updateCommunicationStatus(ctx.user.id, queued.id, { status: "sent", providerMessageId, messageId });
+          await updateCommunicationStatus(ctx.user.id, queued.id, { status: "sent", providerMessageId, messageId: nativeIdentifiers.messageId });
           return { ...queued, status: "sent", providerMessageId };
         } catch (error) {
           await updateCommunicationStatus(ctx.user.id, queued.id, { status: "failed", errorMessage: error instanceof Error ? error.message : "Email send failed." });

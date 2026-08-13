@@ -36,6 +36,8 @@
 - [x] Keep Resend sending and schedule activation disabled until the user explicitly approves activation after successful testing.
 - [ ] Provide DNS, webhook, secret-entry, and end-to-end evidence for Resend thread, idempotency, suppression, and provider-gating controls.
 - [ ] Add automated integration coverage for Resend webhook deduplication, suppression enforcement, signed unsubscribe handling, and reply-thread reconstruction.
+- [ ] Add endpoint-level tests for duplicate Resend webhook IDs, suppression blocking, signed unsubscribe requests, and inbound reply-thread reconstruction.
+- [ ] Add direct tests proving suppression blocks manual sends, scheduled follow-ups, and weekly report delivery.
 - [x] Add deterministic provider-gating and signed unsubscribe regression coverage without live credentials.
 - [ ] Run credentialed Resend verification for sends, lifecycle events, Receiving replies, and schedule gating; record evidence before activation.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.

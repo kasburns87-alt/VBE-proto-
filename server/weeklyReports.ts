@@ -3,6 +3,7 @@ import { summarizeAnalytics } from "./analytics";
 import { getAnalyticsSnapshotsForUser, reserveMonthlyUsage } from "./db";
 import {
   createReportDelivery,
+  assertRecipientCanReceiveEmail,
   findClientByEmail,
   getClient,
   getClientSchedule,
@@ -95,6 +96,7 @@ export async function generateAndSendWeeklyReport(input: { userId: number; sched
 
 export async function processWeeklyReportSchedule(schedule: { id: number; userId: number; clientId: number | null; recipientEmail: string | null; label: string }, options: { deliver?: boolean; referenceDate?: Date } = {}) {
   if (!schedule.recipientEmail) throw new Error("This weekly report schedule has no recipient email.");
+  if (options.deliver) assertRecipientCanReceiveEmail(await isEmailSuppressed(schedule.userId, schedule.recipientEmail));
   const { startDate, endDate } = lastSevenDayPeriod(options.referenceDate);
   const idempotencyKey = `weekly-report:${schedule.id}:${endDate}`;
   const delivery = await createReportDelivery({
@@ -123,8 +125,6 @@ export async function processWeeklyReportSchedule(schedule: { id: number; userId
     const uploaded = await storagePut(`reports/${schedule.userId}/${schedule.id}/${endDate}.pdf`, pdf, "application/pdf");
     await updateReportDelivery(schedule.userId, delivery.id, { status: "generated", fileKey: uploaded.key, fileUrl: uploaded.url });
     if (!options.deliver) return { ...delivery, status: "generated", fileKey: uploaded.key, fileUrl: uploaded.url };
-    const suppression = await isEmailSuppressed(schedule.userId, schedule.recipientEmail);
-    if (suppression) throw new Error(`This recipient is suppressed for ${suppression.reason} and cannot receive weekly reports.`);
     const settings = await getCommunicationSettings(schedule.userId);
     const messageId = await sendTransactionalEmail({
       to: schedule.recipientEmail,

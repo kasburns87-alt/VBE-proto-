@@ -257,6 +257,10 @@ export async function isEmailSuppressed(userId: number, email: string) {
   return suppression || null;
 }
 
+export function assertRecipientCanReceiveEmail(suppression: { reason: string } | null | undefined) {
+  if (suppression) throw new Error(`This recipient is suppressed for ${suppression.reason} and cannot receive new email.`);
+}
+
 export async function upsertEmailSuppression(input: { userId: number; email: string; reason: "unsubscribe" | "bounce" | "complaint" | "manual"; sourceEventId?: string }) {
   const db = requireDb(await getDb());
   const normalizedEmail = input.email.toLowerCase();

@@ -4,7 +4,7 @@ import { finalizeEmailWebhookEvent, findClientByEmail, findInboundOwner, getComm
 import { emailProviderConfigured, retrieveInboundEmail, verifyResendWebhook, verifyUnsubscribeSignature } from "./email";
 import { processWeeklyReportSchedule } from "./weeklyReports";
 import { processClientFollowUpSchedule } from "./followUps";
-import { getHeaderValue, mapResendLifecycleEvent, replyCandidates, suppressionReasonForLifecycle } from "./resendLifecycle";
+import { getHeaderValue, mapResendLifecycleEvent, replyCandidates, shouldProcessWebhookEvent, suppressionReasonForLifecycle } from "./resendLifecycle";
 
 export function registerOperationsRoutes(app: Express) {
   app.all("/api/unsubscribe", async (req, res) => {
@@ -44,7 +44,7 @@ export function registerOperationsRoutes(app: Express) {
         }
         if (!settings) {
           const eventRecord = await recordEmailWebhookEvent({ providerEventId: eventId, providerMessageId, eventType, payloadJson: payload });
-          if (eventRecord.created) await finalizeEmailWebhookEvent(eventRecord.event.id, { status: "ignored", errorMessage: "No configured inbound mailbox matched this recipient." });
+        if (shouldProcessWebhookEvent(eventRecord.created)) await finalizeEmailWebhookEvent(eventRecord.event.id, { status: "ignored", errorMessage: "No configured inbound mailbox matched this recipient." });
           return res.json({ ok: true, skipped: "unrouted-inbound-address" });
         }
         const messageId = inbound.message_id || getHeaderValue(inbound.headers, "message-id") || undefined;
@@ -74,13 +74,13 @@ export function registerOperationsRoutes(app: Express) {
           receivedAt: new Date(inbound.created_at),
         });
         const eventRecord = await recordEmailWebhookEvent({ providerEventId: eventId, providerMessageId, eventType, userId: settings.userId, communicationId: communication.id, payloadJson: payload });
-        if (eventRecord.created) await finalizeEmailWebhookEvent(eventRecord.event.id, { status: "processed" });
+        if (shouldProcessWebhookEvent(eventRecord.created)) await finalizeEmailWebhookEvent(eventRecord.event.id, { status: "processed" });
         return res.json({ ok: true, communicationId: communication.id });
       }
 
       const communication = providerMessageId ? await getCommunicationByProviderMessageId(providerMessageId) : null;
       const eventRecord = await recordEmailWebhookEvent({ providerEventId: eventId, providerMessageId, eventType, userId: communication?.userId, communicationId: communication?.id, payloadJson: payload });
-      if (!eventRecord.created) return res.json({ ok: true, duplicate: true });
+      if (!shouldProcessWebhookEvent(eventRecord.created)) return res.json({ ok: true, duplicate: true });
       if (eventType === "suppression.added" && communication) {
         await upsertEmailSuppression({ userId: communication.userId, email: communication.recipientEmail, reason: "manual", sourceEventId: eventId });
         await updateCommunicationStatus(communication.userId, communication.id, { status: "suppressed", providerEventId: eventId, providerMessageId });
