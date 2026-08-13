@@ -6,9 +6,12 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { generateCampaignBlueprint, generateCampaignImages, slugify } from "./campaign";
 import {
   createCampaign,
+  createSavedAnalyticsView,
+  deleteSavedAnalyticsView,
   getAnalyticsSnapshotsForUser,
   getCampaignsForUser,
   getCampaignWithAssets,
+  listSavedAnalyticsViews,
   saveCampaignAssets,
   saveCampaignExport,
   recordAnalyticsSnapshot,
@@ -26,6 +29,10 @@ const analyticsFilterSchema = z.object({
   message: "The start date must not be after the end date.",
   path: ["endDate"],
 });
+const savedAnalyticsViewSchema = analyticsFilterSchema.safeExtend({
+  name: z.string().trim().min(2).max(120),
+  datePreset: z.enum(["all", "last7", "last30", "custom"]),
+});
 const briefSchema = z.object({
   productName: z.string().trim().min(2).max(180),
   industry: z.string().trim().min(2).max(140),
@@ -38,6 +45,15 @@ const briefSchema = z.object({
 function decodeBase64(value: string) {
   const normalized = value.replace(/^data:[^;]+;base64,/, "");
   return Buffer.from(normalized, "base64");
+}
+
+function decodeCampaignIds(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((id): id is number => Number.isInteger(id) && id > 0).slice(0, 2) : [];
+  } catch {
+    return [];
+  }
 }
 
 export const appRouter = router({
@@ -136,6 +152,19 @@ export const appRouter = router({
   }),
   analytics: router({
     overview: protectedProcedure.input(analyticsFilterSchema).query(async ({ ctx, input }) => summarizeAnalytics(await getAnalyticsSnapshotsForUser(ctx.user.id, input))),
+    views: router({
+      list: protectedProcedure.query(async ({ ctx }) => {
+        const views = await listSavedAnalyticsViews(ctx.user.id);
+        return views.map(view => ({ ...view, campaignIds: decodeCampaignIds(view.campaignIdsJson) }));
+      }),
+      create: protectedProcedure.input(savedAnalyticsViewSchema).mutation(async ({ ctx, input }) => {
+        const view = await createSavedAnalyticsView(ctx.user.id, { ...input, campaignIds: input.campaignIds ?? [] });
+        return { ...view, campaignIds: decodeCampaignIds(view.campaignIdsJson) };
+      }),
+      delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) =>
+        deleteSavedAnalyticsView(ctx.user.id, input.id)
+      ),
+    }),
     record: protectedProcedure.input(z.object({
       campaignId: z.number().int().positive(),
       platform: z.enum(platforms),

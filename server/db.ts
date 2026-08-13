@@ -5,6 +5,7 @@ import {
   campaignAssets,
   campaigns,
   InsertUser,
+  savedAnalyticsViews,
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -223,4 +224,57 @@ export async function getAnalyticsSnapshotsForUser(userId: number, filters: Anal
     .innerJoin(campaigns, and(eq(campaigns.id, campaignAnalytics.campaignId), eq(campaigns.userId, campaignAnalytics.userId)))
     .where(and(...conditions))
     .orderBy(desc(campaignAnalytics.metricDate), desc(campaignAnalytics.id));
+}
+
+export type SavedAnalyticsViewInput = {
+  name: string;
+  datePreset: "all" | "last7" | "last30" | "custom";
+  startDate?: string;
+  endDate?: string;
+  campaignIds: number[];
+};
+
+export async function createSavedAnalyticsView(userId: number, input: SavedAnalyticsViewInput) {
+  const db = requireDb(await getDb());
+  const campaignIds = Array.from(new Set(input.campaignIds));
+  if (campaignIds.length) {
+    const ownedCampaigns = await db
+      .select({ id: campaigns.id })
+      .from(campaigns)
+      .where(and(eq(campaigns.userId, userId), inArray(campaigns.id, campaignIds)));
+    if (ownedCampaigns.length !== campaignIds.length) throw new Error("A selected campaign is no longer available in your workspace.");
+  }
+  await db.insert(savedAnalyticsViews).values({
+    userId,
+    name: input.name,
+    datePreset: input.datePreset,
+    startDate: input.startDate ?? null,
+    endDate: input.endDate ?? null,
+    campaignIdsJson: JSON.stringify(campaignIds),
+  });
+  const [savedView] = await db
+    .select()
+    .from(savedAnalyticsViews)
+    .where(eq(savedAnalyticsViews.userId, userId))
+    .orderBy(desc(savedAnalyticsViews.id))
+    .limit(1);
+  if (!savedView) throw new Error("Saved view could not be created.");
+  return savedView;
+}
+
+export async function listSavedAnalyticsViews(userId: number) {
+  const db = requireDb(await getDb());
+  return db
+    .select()
+    .from(savedAnalyticsViews)
+    .where(eq(savedAnalyticsViews.userId, userId))
+    .orderBy(desc(savedAnalyticsViews.updatedAt), desc(savedAnalyticsViews.id));
+}
+
+export async function deleteSavedAnalyticsView(userId: number, viewId: number) {
+  const db = requireDb(await getDb());
+  await db
+    .delete(savedAnalyticsViews)
+    .where(and(eq(savedAnalyticsViews.id, viewId), eq(savedAnalyticsViews.userId, userId)));
+  return { success: true } as const;
 }

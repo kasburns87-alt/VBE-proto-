@@ -21,3 +21,6 @@
 - [x] Add actionable performance interpretation to the analytics workspace and validate the extended experience.
 - [x] Add date-range filtering and campaign comparison controls to analyze verified performance over selected periods.
 - [x] Validate, publish, and push the filtered analytics enhancement to GitHub.
+- [x] Add user-owned saved comparison views for named date ranges and selected campaigns.
+- [ ] Validate, publish, and push the saved comparison view enhancement to GitHub.
+- [x] Review connected GitHub repositories for reusable saved-view and analytics persistence patterns.

@@ -30,4 +30,14 @@ describe("campaign helpers", () => {
 
     await expect(caller.campaign.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
+
+  it("requires an authenticated creator before reading saved comparison views", async () => {
+    const caller = appRouter.createCaller({
+      user: null,
+      req: {} as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    });
+
+    await expect(caller.analytics.views.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });

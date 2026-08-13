@@ -65,8 +65,21 @@ export const campaignAnalytics = mysqlTable("campaignAnalytics", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const savedAnalyticsViews = mysqlTable("savedAnalyticsViews", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  datePreset: varchar("datePreset", { length: 20 }).notNull(),
+  startDate: varchar("startDate", { length: 10 }),
+  endDate: varchar("endDate", { length: 10 }),
+  campaignIdsJson: varchar("campaignIdsJson", { length: 80 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
 export type CampaignAsset = typeof campaignAssets.$inferSelect;
 export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;
+export type SavedAnalyticsView = typeof savedAnalyticsViews.$inferSelect;
