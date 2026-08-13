@@ -22,5 +22,6 @@
 - [x] Add date-range filtering and campaign comparison controls to analyze verified performance over selected periods.
 - [x] Validate, publish, and push the filtered analytics enhancement to GitHub.
 - [x] Add user-owned saved comparison views for named date ranges and selected campaigns.
-- [x] Validate, publish, and push the saved comparison view enhancement to GitHub.
+- [ ] Validate, publish, and push the saved comparison view enhancement to GitHub.
+- [ ] Publish the current editable-view and CSV-import enhancement work-in-progress to GitHub before implementation resumes.
 - [x] Review connected GitHub repositories for reusable saved-view and analytics persistence patterns.
