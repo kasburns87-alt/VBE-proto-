@@ -35,9 +35,18 @@
 - [ ] Verify Resend delivery and Receiving end-to-end, then activate live schedules only after domain verification passes.
 - [x] Keep Resend sending and schedule activation disabled until the user explicitly approves activation after successful testing.
 - [ ] Provide DNS, webhook, secret-entry, and end-to-end evidence for Resend thread, idempotency, suppression, and provider-gating controls.
-- [ ] Add automated integration coverage for Resend webhook deduplication, suppression enforcement, signed unsubscribe handling, and reply-thread reconstruction.
-- [ ] Add endpoint-level tests for duplicate Resend webhook IDs, suppression blocking, signed unsubscribe requests, and inbound reply-thread reconstruction.
+- [x] Add automated integration coverage for Resend webhook deduplication, suppression enforcement, signed unsubscribe handling, and reply-thread reconstruction.
+- [x] Add endpoint-level tests for duplicate Resend webhook IDs, suppression blocking, signed unsubscribe requests, and inbound reply-thread reconstruction.
 - [ ] Add direct tests proving suppression blocks manual sends, scheduled follow-ups, and weekly report delivery.
+- [x] Add configurable retention and user-controlled deletion for client communications and generated report records.
+- [x] Complete and validate user-controlled client-data deletion for linked communications, schedules, reports, and campaign links.
+- [x] Add configurable retention policy and purge behavior for client communications and generated report records.
+- [ ] Add automated tests covering client-data deletion and retention-policy behavior.
+- [ ] Add database-backed tests for client-data deletion and retention purge behavior, including ownership isolation and cutoff boundaries.
+- [x] Add readiness diagnostics that distinguish live delivery configuration from safe disabled-mode operation.
+- [x] Add explicit audit and operational status visibility for report/email webhook processing.
+- [x] Add direct user-controlled deletion actions for individual communication and report delivery records.
+- [x] Expose recent webhook audit event details in the client operations workspace.
 - [x] Add deterministic provider-gating and signed unsubscribe regression coverage without live credentials.
 - [ ] Run credentialed Resend verification for sends, lifecycle events, Receiving replies, and schedule gating; record evidence before activation.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.

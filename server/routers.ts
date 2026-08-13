@@ -31,9 +31,14 @@ import {
   createClient,
   createClientSchedule,
   createOutboundCommunication,
+  deleteCommunication,
+  deleteClientWithData,
+  deleteReportDelivery,
   getClient,
   getClientSchedule,
   getCommunicationSettings,
+  getOperationsStatus,
+  purgeExpiredClientRecords,
   assertRecipientCanReceiveEmail,
   isEmailSuppressed,
   listEmailSuppressions,
@@ -269,6 +274,7 @@ export const appRouter = router({
         const { id, ...client } = input;
         return updateClient(ctx.user.id, id, client);
       }),
+      delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deleteClientWithData(ctx.user.id, input.id)),
       askAssistant: protectedProcedure.input(z.object({ clientId: z.number().int().positive(), question: z.string().trim().min(2).max(1600) })).mutation(async ({ ctx, input }) => {
         await reserveMonthlyUsage(ctx.user.id, "assistantRequests");
         const client = await getClient(ctx.user.id, input.clientId);
@@ -303,14 +309,19 @@ export const appRouter = router({
         provider: "Resend",
         ...emailProviderReadiness(),
       })),
+      operationalStatus: protectedProcedure.query(({ ctx }) => getOperationsStatus(ctx.user.id)),
       settings: protectedProcedure.query(({ ctx }) => getCommunicationSettings(ctx.user.id)),
       saveSettings: protectedProcedure.input(z.object({
         fromAddress: z.string().trim().email().max(320).optional(),
         replyToAddress: z.string().trim().email().max(320).optional(),
         inboundAddress: z.string().trim().email().max(320).optional(),
         senderName: z.string().trim().max(160).optional(),
+        communicationRetentionDays: z.number().int().min(30).max(3650).optional(),
+        reportRetentionDays: z.number().int().min(30).max(3650).optional(),
       })).mutation(({ ctx, input }) => saveCommunicationSettings(ctx.user.id, input)),
+      purgeExpired: protectedProcedure.mutation(({ ctx }) => purgeExpiredClientRecords(ctx.user.id)),
       list: protectedProcedure.input(z.object({ clientId: z.number().int().positive().optional() }).optional()).query(({ ctx, input }) => listCommunications(ctx.user.id, input?.clientId)),
+      delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deleteCommunication(ctx.user.id, input.id)),
       listSuppressions: protectedProcedure.query(({ ctx }) => listEmailSuppressions(ctx.user.id)),
       suppress: protectedProcedure.input(z.object({ email: z.string().trim().email().max(320), reason: z.enum(["unsubscribe", "bounce", "complaint", "manual"]).default("manual") })).mutation(({ ctx, input }) => upsertEmailSuppression({ userId: ctx.user.id, ...input })),
       unsuppress: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
@@ -400,6 +411,7 @@ export const appRouter = router({
     }),
     reports: router({
       list: protectedProcedure.query(({ ctx }) => listReportDeliveries(ctx.user.id)),
+      delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deleteReportDelivery(ctx.user.id, input.id)),
     }),
   }),
 });

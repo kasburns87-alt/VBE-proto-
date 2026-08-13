@@ -49,5 +49,6 @@ describe("campaign helpers", () => {
     });
 
     await expect(caller.clientOps.clients.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.clientOps.clients.delete({ id: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

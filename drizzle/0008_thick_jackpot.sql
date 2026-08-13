@@ -1,0 +1,2 @@
+ALTER TABLE `communicationSettings` ADD `communicationRetentionDays` int DEFAULT 365 NOT NULL;--> statement-breakpoint
+ALTER TABLE `communicationSettings` ADD `reportRetentionDays` int DEFAULT 365 NOT NULL;

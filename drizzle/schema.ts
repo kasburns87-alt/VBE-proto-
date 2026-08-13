@@ -115,6 +115,8 @@ export const communicationSettings = mysqlTable("communicationSettings", {
   replyToAddress: varchar("replyToAddress", { length: 320 }),
   inboundAddress: varchar("inboundAddress", { length: 320 }),
   senderName: varchar("senderName", { length: 160 }),
+  communicationRetentionDays: int("communicationRetentionDays").notNull().default(365),
+  reportRetentionDays: int("reportRetentionDays").notNull().default(365),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

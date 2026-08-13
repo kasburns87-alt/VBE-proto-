@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import {
   campaigns,
   clientCampaigns,
@@ -107,13 +107,26 @@ export async function updateClient(userId: number, clientId: number, input: Clie
   return getClient(userId, clientId);
 }
 
+export async function deleteClientWithData(userId: number, clientId: number) {
+  const db = requireDb(await getDb());
+  await getClient(userId, clientId);
+  await db.transaction(async tx => {
+    await tx.delete(reportDeliveries).where(and(eq(reportDeliveries.userId, userId), eq(reportDeliveries.clientId, clientId)));
+    await tx.delete(clientSchedules).where(and(eq(clientSchedules.userId, userId), eq(clientSchedules.clientId, clientId)));
+    await tx.delete(clientCommunications).where(and(eq(clientCommunications.userId, userId), eq(clientCommunications.clientId, clientId)));
+    await tx.delete(clientCampaigns).where(and(eq(clientCampaigns.userId, userId), eq(clientCampaigns.clientId, clientId)));
+    await tx.delete(clients).where(and(eq(clients.userId, userId), eq(clients.id, clientId)));
+  });
+  return { success: true } as const;
+}
+
 export async function getCommunicationSettings(userId: number) {
   const db = requireDb(await getDb());
   const [settings] = await db.select().from(communicationSettings).where(eq(communicationSettings.userId, userId)).limit(1);
   return settings || null;
 }
 
-export async function saveCommunicationSettings(userId: number, input: { fromAddress?: string; replyToAddress?: string; inboundAddress?: string; senderName?: string }) {
+export async function saveCommunicationSettings(userId: number, input: { fromAddress?: string; replyToAddress?: string; inboundAddress?: string; senderName?: string; communicationRetentionDays?: number; reportRetentionDays?: number }) {
   const db = requireDb(await getDb());
   await db.insert(communicationSettings).values({
     userId,
@@ -121,13 +134,38 @@ export async function saveCommunicationSettings(userId: number, input: { fromAdd
     replyToAddress: input.replyToAddress || null,
     inboundAddress: input.inboundAddress || null,
     senderName: input.senderName || null,
+    communicationRetentionDays: input.communicationRetentionDays ?? 365,
+    reportRetentionDays: input.reportRetentionDays ?? 365,
   }).onDuplicateKeyUpdate({ set: {
     fromAddress: input.fromAddress || null,
     replyToAddress: input.replyToAddress || null,
     inboundAddress: input.inboundAddress || null,
     senderName: input.senderName || null,
+    communicationRetentionDays: input.communicationRetentionDays ?? 365,
+    reportRetentionDays: input.reportRetentionDays ?? 365,
   } });
   return getCommunicationSettings(userId);
+}
+
+export function retentionCutoffs(settings: { communicationRetentionDays?: number | null; reportRetentionDays?: number | null } | null | undefined, reference = new Date()) {
+  const communicationDays = settings?.communicationRetentionDays ?? 365;
+  const reportDays = settings?.reportRetentionDays ?? 365;
+  return {
+    communicationCutoff: new Date(reference.getTime() - communicationDays * 86_400_000),
+    reportCutoff: new Date(reference.getTime() - reportDays * 86_400_000),
+  };
+}
+
+export async function purgeExpiredClientRecords(userId: number) {
+  const db = requireDb(await getDb());
+  const settings = await getCommunicationSettings(userId);
+  const { communicationCutoff, reportCutoff } = retentionCutoffs(settings);
+  const result = await db.transaction(async tx => {
+    const communications = await tx.delete(clientCommunications).where(and(eq(clientCommunications.userId, userId), lt(clientCommunications.createdAt, communicationCutoff)));
+    const reports = await tx.delete(reportDeliveries).where(and(eq(reportDeliveries.userId, userId), lt(reportDeliveries.createdAt, reportCutoff)));
+    return { communications: Number(communications[0]?.affectedRows || 0), reports: Number(reports[0]?.affectedRows || 0) };
+  });
+  return { ...result, communicationCutoff, reportCutoff };
 }
 
 export async function listCommunications(userId: number, clientId?: number) {
@@ -135,6 +173,13 @@ export async function listCommunications(userId: number, clientId?: number) {
   const conditions = [eq(clientCommunications.userId, userId)];
   if (clientId) conditions.push(eq(clientCommunications.clientId, clientId));
   return db.select().from(clientCommunications).where(and(...conditions)).orderBy(desc(clientCommunications.createdAt));
+}
+
+export async function deleteCommunication(userId: number, communicationId: number) {
+  const db = requireDb(await getDb());
+  const result = await db.delete(clientCommunications).where(and(eq(clientCommunications.userId, userId), eq(clientCommunications.id, communicationId)));
+  if (!Number(result[0]?.affectedRows || 0)) throw new Error("Communication record not found.");
+  return { success: true } as const;
 }
 
 export async function createOutboundCommunication(userId: number, input: { clientId: number; senderEmail: string; recipientEmail: string; subject: string; bodyText: string; bodyHtml: string; inReplyTo?: string; referencesHeader?: string; threadKey: string; idempotencyKey: string }) {
@@ -342,5 +387,31 @@ export async function updateReportDelivery(userId: number, deliveryId: number, p
 
 export async function listReportDeliveries(userId: number) {
   const db = requireDb(await getDb());
-  return db.select().from(reportDeliveries).where(eq(reportDeliveries.userId, userId)).orderBy(desc(reportDeliveries.createdAt));
+  return db.select().from(reportDeliveries).where(eq(reportDeliveries.userId, userId)).orderBy(desc(reportDeliveries.createdAt)).limit(50);
+}
+
+export async function deleteReportDelivery(userId: number, deliveryId: number) {
+  const db = requireDb(await getDb());
+  const result = await db.delete(reportDeliveries).where(and(eq(reportDeliveries.userId, userId), eq(reportDeliveries.id, deliveryId)));
+  if (!Number(result[0]?.affectedRows || 0)) throw new Error("Report delivery record not found.");
+  return { success: true } as const;
+}
+
+export async function getOperationsStatus(userId: number) {
+  const db = requireDb(await getDb());
+  const [webhooks, reports] = await Promise.all([
+    db.select().from(emailWebhookEvents).where(eq(emailWebhookEvents.userId, userId)).orderBy(desc(emailWebhookEvents.receivedAt)).limit(12),
+    db.select().from(reportDeliveries).where(eq(reportDeliveries.userId, userId)).orderBy(desc(reportDeliveries.createdAt)).limit(12),
+  ]);
+  return {
+    webhooks,
+    reports,
+    summary: {
+      webhookFailures: webhooks.filter(event => event.status === "failed").length,
+      webhookProcessed: webhooks.filter(event => event.status === "processed").length,
+      reportFailures: reports.filter(report => report.status === "failed").length,
+      reportSent: reports.filter(report => report.status === "sent").length,
+      reportDrafts: reports.filter(report => report.status === "generated").length,
+    },
+  };
 }

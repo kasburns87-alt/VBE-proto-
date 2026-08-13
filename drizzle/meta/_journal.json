@@ -57,6 +57,13 @@
       "when": 1786598023647,
       "tag": "0007_dazzling_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1786602569800,
+      "tag": "0008_thick_jackpot",
+      "breakpoints": true
     }
   ]
 }
