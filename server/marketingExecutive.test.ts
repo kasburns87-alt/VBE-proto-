@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getDb: vi.fn(), reserveUsage: vi.fn(), snapshots: vi.fn(), llm: vi.fn(), dataApi: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getDb: vi.fn(), reserveUsage: vi.fn(), snapshots: vi.fn(), purchases: vi.fn(), llm: vi.fn(), dataApi: vi.fn() }));
 vi.mock("./db", () => ({ getDb: mocks.getDb, reserveMonthlyUsage: mocks.reserveUsage, getAnalyticsSnapshotsForUser: mocks.snapshots }));
 vi.mock("./analytics", () => ({ summarizeAnalytics: vi.fn(() => ({ snapshotCount: 0, totals: {}, platforms: [], campaigns: [] })) }));
+vi.mock("./purchaseIntelligence", () => ({ getPurchaseIntelligence: mocks.purchases }));
 vi.mock("./_core/llm", () => ({ invokeLLM: mocks.llm }));
 vi.mock("./_core/dataApi", () => ({ callDataApi: mocks.dataApi }));
 
@@ -58,6 +59,7 @@ describe("marketing executive", () => {
     const db = executiveDb(profile, run);
     mocks.getDb.mockResolvedValue(db);
     mocks.snapshots.mockResolvedValue([]);
+    mocks.purchases.mockResolvedValue({ purchaseCount: 2, completedCount: 1, refundedCount: 1, completedRevenueCents: 15_000, refundedCents: 5_000, netRevenueCents: 10_000, topOffers: [{ label: "Recovery plan", count: 2, netCents: 10_000 }], topChannels: [{ label: "Meta", count: 2, netCents: 10_000 }] });
     mocks.dataApi.mockResolvedValue({ metric: "available" });
     mocks.llm.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ executiveSummary: "Test a focused offer", whatIsWorking: [], watchouts: [], nextMove: { title: "Test", rationale: "No verified snapshots are available.", priority: "now" }, campaignMaterial: { concept: "Recovery routine", headline: "Your reset starts here", primaryText: "A daily recovery ritual.", cta: "Learn more", hashtags: ["#recovery"] }, researchBrief: { recommendedQuery: "wellness recovery trends", sourceNeed: "Verify demand with named sources", caveat: "No performance result is claimed." } }) } }] });
 
@@ -65,8 +67,10 @@ describe("marketing executive", () => {
 
     expect(mocks.reserveUsage).toHaveBeenCalledWith(3, "assistantRequests");
     expect(result.evidence.verifiedAnalytics.snapshotCount).toBe(0);
+    expect(result.evidence.purchaseIntelligence.netRevenueCents).toBe(10_000);
     expect(result.evidence.marketSignals.sources).toHaveLength(3);
     expect(db.inserts[0].evidenceJson).toContain("Similarweb total visits");
     expect(mocks.llm.mock.calls[0][0].messages[1].content).toContain("Source-attributed market signals");
+    expect(mocks.llm.mock.calls[0][0].messages[1].content).toContain("Verified purchase outcomes");
   });
 });

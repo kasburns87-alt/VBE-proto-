@@ -262,6 +262,25 @@ export const marketingExecutiveRuns = mysqlTable("marketingExecutiveRuns", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => [index("marketing_executive_runs_owner_created_idx").on(table.userId, table.createdAt)]);
 
+export const purchaseOutcomes = mysqlTable("purchaseOutcomes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: int("clientId").references(() => clients.id, { onDelete: "set null" }),
+  campaignId: int("campaignId").references(() => campaigns.id, { onDelete: "set null" }),
+  offerName: varchar("offerName", { length: 220 }).notNull(),
+  purchaseDate: varchar("purchaseDate", { length: 10 }).notNull(),
+  amountCents: int("amountCents").notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  acquisitionChannel: varchar("acquisitionChannel", { length: 120 }),
+  outcome: mysqlEnum("outcome", ["completed", "refunded", "cancelled"]).notNull().default("completed"),
+  customerReference: varchar("customerReference", { length: 180 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => [
+  index("purchase_outcomes_owner_date_idx").on(table.userId, table.purchaseDate),
+  index("purchase_outcomes_owner_campaign_idx").on(table.userId, table.campaignId),
+]);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
@@ -277,3 +296,4 @@ export type ReportDelivery = typeof reportDeliveries.$inferSelect;
 export type UserUsageCounter = typeof userUsageCounters.$inferSelect;
 export type BusinessProfile = typeof businessProfiles.$inferSelect;
 export type MarketingExecutiveRun = typeof marketingExecutiveRuns.$inferSelect;
+export type PurchaseOutcome = typeof purchaseOutcomes.$inferSelect;

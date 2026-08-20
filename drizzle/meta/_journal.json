@@ -71,6 +71,13 @@
       "when": 1787188724588,
       "tag": "0009_brainy_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1787189285761,
+      "tag": "0010_vengeful_tigra",
+      "breakpoints": true
     }
   ]
 }

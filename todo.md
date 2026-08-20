@@ -51,6 +51,8 @@
 - [x] Add multi-source market signal retrieval and persist source-attributed evidence for executive runs.
 - [x] Add automated executive-run tests for verified analytics diagnosis and source-transparent trend research fallbacks.
 - [ ] Verify populated executive diagnosis and trend-source states before treating the marketing executive as complete.
+- [x] Add user-owned purchase outcome records that connect customers, offers, revenue, and acquisition channel context.
+- [x] Use verified purchase outcomes in marketing executive recommendations without fabricating customer behavior or revenue signals.
 - [x] Add readiness diagnostics that distinguish live delivery configuration from safe disabled-mode operation.
 - [x] Add explicit audit and operational status visibility for report/email webhook processing.
 - [x] Add direct user-controlled deletion actions for individual communication and report delivery records.

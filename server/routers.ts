@@ -58,6 +58,7 @@ import { assertManualEmailCanSend } from "./manualEmailPolicy";
 import { processWeeklyReportSchedule } from "./weeklyReports";
 import { processClientFollowUpSchedule } from "./followUps";
 import { getBusinessProfile, listExecutiveRuns, runMarketingExecutive, saveBusinessProfile } from "./marketingExecutive";
+import { listPurchaseOutcomes, recordPurchaseOutcome } from "./purchaseIntelligence";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
 const analyticsFilterSchema = z.object({
@@ -123,6 +124,18 @@ const businessProfileSchema = z.object({
   strategicGoals: z.string().trim().max(5_000).optional(),
   marketContext: z.string().trim().max(5_000).optional(),
   guardrails: z.string().trim().max(5_000).optional(),
+});
+const purchaseOutcomeSchema = z.object({
+  clientId: z.number().int().positive().optional(),
+  campaignId: z.number().int().positive().optional(),
+  offerName: z.string().trim().min(2).max(220),
+  purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD."),
+  amountCents: z.number().int().min(0).max(2_000_000_000),
+  currency: z.string().trim().regex(/^[A-Za-z]{3}$/, "Use a 3-letter currency code.").optional(),
+  acquisitionChannel: z.string().trim().max(120).optional(),
+  outcome: z.enum(["completed", "refunded", "cancelled"]),
+  customerReference: z.string().trim().max(180).optional(),
+  notes: z.string().trim().max(5_000).optional(),
 });
 
 function decodeBase64(value: string) {
@@ -286,6 +299,10 @@ export const appRouter = router({
       prompt: z.string().trim().min(6).max(3_000),
       runType: z.enum(["campaign_plan", "performance_review", "market_signal_review", "material_refresh"]),
     })).mutation(({ ctx, input }) => runMarketingExecutive({ userId: ctx.user.id, ...input })),
+    purchases: router({
+      list: protectedProcedure.query(({ ctx }) => listPurchaseOutcomes(ctx.user.id)),
+      record: protectedProcedure.input(purchaseOutcomeSchema).mutation(({ ctx, input }) => recordPurchaseOutcome(ctx.user.id, input)),
+    }),
   }),
   clientOps: router({
     clients: router({

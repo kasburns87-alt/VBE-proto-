@@ -5,6 +5,7 @@ import { summarizeAnalytics } from "./analytics";
 import { getAnalyticsSnapshotsForUser, getDb, reserveMonthlyUsage } from "./db";
 import { callDataApi } from "./_core/dataApi";
 import { invokeLLM } from "./_core/llm";
+import { getPurchaseIntelligence } from "./purchaseIntelligence";
 
 function requireDb(db: Awaited<ReturnType<typeof getDb>>) {
   if (!db) throw new Error("Database is not available.");
@@ -100,14 +101,15 @@ export async function runMarketingExecutive(input: { userId: number; prompt: str
   if (!profile) throw new Error("Complete the business intelligence profile before using the marketing executive.");
   await reserveMonthlyUsage(input.userId, "assistantRequests");
   const analytics = summarizeAnalytics(await getAnalyticsSnapshotsForUser(input.userId, {}));
+  const purchaseIntelligence = await getPurchaseIntelligence(input.userId);
   const marketSignals = await getMarketSignals(profile.websiteDomain);
-  const evidence = { verifiedAnalytics: analytics, marketSignals, generatedAt: new Date().toISOString() };
+  const evidence = { verifiedAnalytics: analytics, purchaseIntelligence, marketSignals, generatedAt: new Date().toISOString() };
   const response = await invokeLLM({
     max_tokens: 2200,
     response_format: { type: "json_schema", json_schema: { name: "marketing_executive_output", strict: true, schema: responseSchema } },
     messages: [
-      { role: "system", content: "You are a rigorous personal marketing executive. Use the business profile as durable context. Treat only supplied analytics as verified performance evidence. Treat any supplied website signal as external evidence and name it. Never invent market trends, conversion results, customer research, or source citations. If market evidence is unavailable, say so plainly and convert it into a research brief instead of a claim. Produce an original, concise, commercially useful recommendation. Do not recommend autonomous publishing; all recommendations require owner approval." },
-      { role: "user", content: `Business profile:\n${JSON.stringify(profile)}\n\nVerified analytics:\n${JSON.stringify(analytics)}\n\nSource-attributed market signals:\n${JSON.stringify(marketSignals)}\n\nExecutive request: ${input.prompt}\n\nReturn a decisive but evidence-calibrated response.` },
+      { role: "system", content: "You are a rigorous personal marketing executive. Use the business profile as durable context. Treat only supplied analytics and purchase outcomes as verified internal performance evidence. Treat any supplied website signal as external evidence and name it. Never invent market trends, conversion results, customer research, or source citations. If market evidence is unavailable, say so plainly and convert it into a research brief instead of a claim. Produce an original, concise, commercially useful recommendation. Do not recommend autonomous publishing; all recommendations require owner approval." },
+      { role: "user", content: `Business profile:\n${JSON.stringify(profile)}\n\nVerified advertising analytics:\n${JSON.stringify(analytics)}\n\nVerified purchase outcomes:\n${JSON.stringify(purchaseIntelligence)}\n\nSource-attributed market signals:\n${JSON.stringify(marketSignals)}\n\nExecutive request: ${input.prompt}\n\nReturn a decisive but evidence-calibrated response.` },
     ],
   });
   const content = response.choices[0]?.message.content;
