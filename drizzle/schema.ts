@@ -233,6 +233,35 @@ export const userUsageCounters = mysqlTable("userUsageCounters", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [uniqueIndex("user_usage_counters_owner_period_unique").on(table.userId, table.periodKey)]);
 
+export const businessProfiles = mysqlTable("businessProfiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  businessName: varchar("businessName", { length: 180 }).notNull(),
+  websiteDomain: varchar("websiteDomain", { length: 240 }),
+  industry: varchar("industry", { length: 140 }).notNull(),
+  coreOffer: text("coreOffer").notNull(),
+  targetAudience: text("targetAudience").notNull(),
+  brandVoice: varchar("brandVoice", { length: 180 }).notNull(),
+  differentiators: text("differentiators"),
+  strategicGoals: text("strategicGoals"),
+  marketContext: text("marketContext"),
+  guardrails: text("guardrails"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const marketingExecutiveRuns = mysqlTable("marketingExecutiveRuns", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  profileId: int("profileId").references(() => businessProfiles.id, { onDelete: "set null" }),
+  prompt: text("prompt").notNull(),
+  runType: mysqlEnum("runType", ["campaign_plan", "performance_review", "market_signal_review", "material_refresh"]).notNull(),
+  status: mysqlEnum("status", ["complete", "failed"]).notNull().default("complete"),
+  outputJson: text("outputJson"),
+  evidenceJson: text("evidenceJson"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => [index("marketing_executive_runs_owner_created_idx").on(table.userId, table.createdAt)]);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
@@ -246,3 +275,5 @@ export type EmailSuppression = typeof emailSuppressions.$inferSelect;
 export type ClientSchedule = typeof clientSchedules.$inferSelect;
 export type ReportDelivery = typeof reportDeliveries.$inferSelect;
 export type UserUsageCounter = typeof userUsageCounters.$inferSelect;
+export type BusinessProfile = typeof businessProfiles.$inferSelect;
+export type MarketingExecutiveRun = typeof marketingExecutiveRuns.$inferSelect;

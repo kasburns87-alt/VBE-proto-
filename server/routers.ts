@@ -57,6 +57,7 @@ import { createNativeMessageIdentifiers } from "./resendLifecycle";
 import { assertManualEmailCanSend } from "./manualEmailPolicy";
 import { processWeeklyReportSchedule } from "./weeklyReports";
 import { processClientFollowUpSchedule } from "./followUps";
+import { getBusinessProfile, listExecutiveRuns, runMarketingExecutive, saveBusinessProfile } from "./marketingExecutive";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
 const analyticsFilterSchema = z.object({
@@ -110,6 +111,18 @@ const scheduleSchema = z.object({
   recipientEmail: z.string().trim().email().max(320).optional(),
   timezone: z.string().trim().min(3).max(80),
   cronExpression: z.string().trim().regex(/^\S+(\s+\S+){5}$/, "Use a 6-field UTC cron expression.").optional(),
+});
+const businessProfileSchema = z.object({
+  businessName: z.string().trim().min(2).max(180),
+  websiteDomain: z.string().trim().max(240).optional(),
+  industry: z.string().trim().min(2).max(140),
+  coreOffer: z.string().trim().min(10).max(5_000),
+  targetAudience: z.string().trim().min(10).max(5_000),
+  brandVoice: z.string().trim().min(2).max(180),
+  differentiators: z.string().trim().max(5_000).optional(),
+  strategicGoals: z.string().trim().max(5_000).optional(),
+  marketContext: z.string().trim().max(5_000).optional(),
+  guardrails: z.string().trim().max(5_000).optional(),
 });
 
 function decodeBase64(value: string) {
@@ -264,6 +277,15 @@ export const appRouter = router({
     importSnapshots: protectedProcedure.input(z.object({ snapshots: z.array(analyticsSnapshotSchema).min(1).max(1000) })).mutation(({ ctx, input }) =>
       recordAnalyticsSnapshots(ctx.user.id, input.snapshots)
     ),
+  }),
+  executive: router({
+    profile: protectedProcedure.query(({ ctx }) => getBusinessProfile(ctx.user.id)),
+    saveProfile: protectedProcedure.input(businessProfileSchema).mutation(({ ctx, input }) => saveBusinessProfile(ctx.user.id, input)),
+    listRuns: protectedProcedure.query(({ ctx }) => listExecutiveRuns(ctx.user.id)),
+    run: protectedProcedure.input(z.object({
+      prompt: z.string().trim().min(6).max(3_000),
+      runType: z.enum(["campaign_plan", "performance_review", "market_signal_review", "material_refresh"]),
+    })).mutation(({ ctx, input }) => runMarketingExecutive({ userId: ctx.user.id, ...input })),
   }),
   clientOps: router({
     clients: router({

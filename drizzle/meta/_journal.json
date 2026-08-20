@@ -64,6 +64,13 @@
       "when": 1786602569800,
       "tag": "0008_thick_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1787188724588,
+      "tag": "0009_brainy_nekra",
+      "breakpoints": true
     }
   ]
 }
