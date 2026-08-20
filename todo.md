@@ -42,7 +42,7 @@
 - [x] Complete and validate user-controlled client-data deletion for linked communications, schedules, reports, and campaign links.
 - [x] Add configurable retention policy and purge behavior for client communications and generated report records.
 - [x] Add automated tests covering client-data deletion and retention-policy behavior.
-- [ ] Add database-backed tests for client-data deletion and retention purge behavior, including ownership isolation and cutoff boundaries.
+- [x] Add database-backed tests for client-data deletion and retention purge behavior, including ownership isolation and cutoff boundaries.
 - [ ] Run isolated persisted-data ownership and retention-boundary verification before treating client-data purge controls as production-complete.
 - [x] Add a persistent business intelligence profile with brand, audience, offer, market, and strategic guardrail context.
 - [x] Add a single-prompt personal marketing executive workspace that uses the saved business context to create adaptive campaign material.
@@ -69,3 +69,7 @@
 - [x] Add user-scoped cost controls for campaign generation and report-email actions.
 - [x] Assess and apply safe indexing improvements after checking current production data constraints.
 - [x] Add an in-app provider setup state that keeps outgoing email and scheduled delivery safely disabled until a sender connection is configured.
+- [x] Audit the PulseForge codebase for security, data-ownership, reliability, architecture, and integration-readiness issues before ecosystem integration.
+- [x] Apply and verify priority audit fixes without enabling live outbound delivery or autonomous execution.
+- [x] Package the audited PulseForge source and an architecture/audit report for owner review.
+- [x] Define approved shared-account, asset, approval, and reporting contracts for distinct BrandForge, PulseForge, and LaunchPro modules.
