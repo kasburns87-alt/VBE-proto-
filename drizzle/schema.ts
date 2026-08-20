@@ -12,9 +12,56 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const workspaces = mysqlTable("workspaces", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 180 }).notNull(),
+  slug: varchar("slug", { length: 120 }).notNull(),
+  createdByUserId: int("createdByUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  uniqueIndex("workspaces_slug_unique").on(table.slug),
+  index("workspaces_creator_updated_idx").on(table.createdByUserId, table.updatedAt),
+]);
+
+export const workspaceMemberships = mysqlTable("workspaceMemberships", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspaceId").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: mysqlEnum("role", ["owner", "admin", "member", "viewer"]).notNull().default("member"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  uniqueIndex("workspace_memberships_workspace_user_unique").on(table.workspaceId, table.userId),
+  index("workspace_memberships_user_workspace_idx").on(table.userId, table.workspaceId),
+]);
+
+export const moduleIntegrationContracts = mysqlTable("moduleIntegrationContracts", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspaceId").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  createdByUserId: int("createdByUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceModule: mysqlEnum("sourceModule", ["brandforge", "pulseforge", "launchpro"]).notNull(),
+  targetModule: mysqlEnum("targetModule", ["brandforge", "pulseforge", "launchpro"]).notNull(),
+  contractType: mysqlEnum("contractType", ["brand_profile_snapshot", "brand_asset_reference", "campaign_pack_manifest", "approval_decision", "performance_snapshot", "outcome_signal"]).notNull(),
+  contractVersion: varchar("contractVersion", { length: 24 }).notNull(),
+  entityType: varchar("entityType", { length: 80 }).notNull(),
+  entityId: varchar("entityId", { length: 180 }).notNull(),
+  status: mysqlEnum("status", ["draft", "approved", "rejected", "superseded"]).notNull().default("draft"),
+  payloadJson: text("payloadJson").notNull(),
+  correlationId: varchar("correlationId", { length: 120 }).notNull(),
+  idempotencyKey: varchar("idempotencyKey", { length: 180 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  uniqueIndex("module_contracts_workspace_idempotency_unique").on(table.workspaceId, table.idempotencyKey),
+  index("module_contracts_workspace_entity_created_idx").on(table.workspaceId, table.entityType, table.entityId, table.createdAt),
+  index("module_contracts_workspace_target_status_idx").on(table.workspaceId, table.targetModule, table.status),
+]);
+
 export const campaigns = mysqlTable("campaigns", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  workspaceId: int("workspaceId").references(() => workspaces.id, { onDelete: "set null" }),
   campaignName: varchar("campaignName", { length: 220 }),
   productName: varchar("productName", { length: 180 }).notNull(),
   industry: varchar("industry", { length: 140 }).notNull(),
@@ -29,7 +76,10 @@ export const campaigns = mysqlTable("campaigns", {
   exportUrl: varchar("exportUrl", { length: 700 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, table => [index("campaigns_user_updated_idx").on(table.userId, table.updatedAt)]);
+}, table => [
+  index("campaigns_user_updated_idx").on(table.userId, table.updatedAt),
+  index("campaigns_workspace_updated_idx").on(table.workspaceId, table.updatedAt),
+]);
 
 export const campaignAssets = mysqlTable("campaignAssets", {
   id: int("id").autoincrement().primaryKey(),
@@ -81,6 +131,7 @@ export const savedAnalyticsViews = mysqlTable("savedAnalyticsViews", {
 export const clients = mysqlTable("clients", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  workspaceId: int("workspaceId").references(() => workspaces.id, { onDelete: "set null" }),
   name: varchar("name", { length: 160 }).notNull(),
   company: varchar("company", { length: 180 }),
   email: varchar("email", { length: 320 }).notNull(),
@@ -94,6 +145,7 @@ export const clients = mysqlTable("clients", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [
   index("clients_owner_status_updated_idx").on(table.userId, table.status, table.updatedAt),
+  index("clients_workspace_status_updated_idx").on(table.workspaceId, table.status, table.updatedAt),
   uniqueIndex("clients_owner_email_unique").on(table.userId, table.email),
 ]);
 
@@ -283,6 +335,9 @@ export const purchaseOutcomes = mysqlTable("purchaseOutcomes", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type Workspace = typeof workspaces.$inferSelect;
+export type WorkspaceMembership = typeof workspaceMemberships.$inferSelect;
+export type ModuleIntegrationContract = typeof moduleIntegrationContracts.$inferSelect;
 export type Campaign = typeof campaigns.$inferSelect;
 export type CampaignAsset = typeof campaignAssets.$inferSelect;
 export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;

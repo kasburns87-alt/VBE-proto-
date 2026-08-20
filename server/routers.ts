@@ -59,6 +59,7 @@ import { processWeeklyReportSchedule } from "./weeklyReports";
 import { processClientFollowUpSchedule } from "./followUps";
 import { getBusinessProfile, listExecutiveRuns, runMarketingExecutive, saveBusinessProfile } from "./marketingExecutive";
 import { listPurchaseOutcomes, recordPurchaseOutcome } from "./purchaseIntelligence";
+import { createModuleIntegrationContract, getOrCreateDefaultWorkspace, listModuleIntegrationContracts, listWorkspacesForUser } from "./workspaces";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
 const analyticsFilterSchema = z.object({
@@ -137,6 +138,19 @@ const purchaseOutcomeSchema = z.object({
   customerReference: z.string().trim().max(180).optional(),
   notes: z.string().trim().max(5_000).optional(),
 });
+const integrationContractSchema = z.object({
+  workspaceId: z.number().int().positive(),
+  sourceModule: z.enum(["brandforge", "pulseforge", "launchpro"]),
+  targetModule: z.enum(["brandforge", "pulseforge", "launchpro"]),
+  contractType: z.enum(["brand_profile_snapshot", "brand_asset_reference", "campaign_pack_manifest", "approval_decision", "performance_snapshot", "outcome_signal"]),
+  contractVersion: z.string().trim().regex(/^v\d+(\.\d+){0,2}$/, "Use a version such as v1 or v1.0."),
+  entityType: z.string().trim().min(2).max(80),
+  entityId: z.string().trim().min(1).max(180),
+  status: z.enum(["draft", "approved", "rejected", "superseded"]),
+  payload: z.object({}).passthrough(),
+  correlationId: z.string().trim().min(8).max(120),
+  idempotencyKey: z.string().trim().min(16).max(180),
+});
 
 function decodeBase64(value: string) {
   const normalized = value.replace(/^data:[^;]+;base64,/, "");
@@ -178,10 +192,19 @@ export const appRouter = router({
       return { success: true } as const;
     }),
   }),
+  workspace: router({
+    context: protectedProcedure.query(({ ctx }) => getOrCreateDefaultWorkspace(ctx.user.id, ctx.user.name)),
+    list: protectedProcedure.query(({ ctx }) => listWorkspacesForUser(ctx.user.id)),
+    contracts: router({
+      list: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listModuleIntegrationContracts(ctx.user.id, input.workspaceId)),
+      create: protectedProcedure.input(integrationContractSchema).mutation(({ ctx, input }) => createModuleIntegrationContract(ctx.user.id, input)),
+    }),
+  }),
   campaign: router({
     generate: protectedProcedure.input(briefSchema).mutation(async ({ ctx, input }) => {
       await reserveMonthlyUsage(ctx.user.id, "campaignGenerations");
-      const campaign = await createCampaign({ ...input, userId: ctx.user.id });
+      const workspace = await getOrCreateDefaultWorkspace(ctx.user.id, ctx.user.name);
+      const campaign = await createCampaign({ ...input, userId: ctx.user.id, workspaceId: workspace.workspace.id });
       try {
         const blueprint = await generateCampaignBlueprint(input);
         const assets = await generateCampaignImages(input, blueprint, { userId: ctx.user.id, campaignId: campaign.id });
@@ -308,7 +331,10 @@ export const appRouter = router({
     clients: router({
       list: protectedProcedure.query(({ ctx }) => listClients(ctx.user.id)),
       get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(({ ctx, input }) => getClient(ctx.user.id, input.id)),
-      create: protectedProcedure.input(clientInputSchema).mutation(({ ctx, input }) => createClient(ctx.user.id, input)),
+      create: protectedProcedure.input(clientInputSchema).mutation(async ({ ctx, input }) => {
+        const workspace = await getOrCreateDefaultWorkspace(ctx.user.id, ctx.user.name);
+        return createClient(ctx.user.id, input, workspace.workspace.id);
+      }),
       update: protectedProcedure.input(clientInputSchema.extend({ id: z.number().int().positive() })).mutation(({ ctx, input }) => {
         const { id, ...client } = input;
         return updateClient(ctx.user.id, id, client);

@@ -63,6 +63,7 @@ export async function getUserByOpenId(openId: string) {
 
 export type CampaignCreateInput = {
   userId: number;
+  workspaceId?: number;
   productName: string;
   industry: string;
   targetAudience: string;
@@ -75,6 +76,7 @@ export async function createCampaign(input: CampaignCreateInput) {
   const db = requireDb(await getDb());
   const [insertResult] = await db.insert(campaigns).values({
     userId: input.userId,
+    workspaceId: input.workspaceId || null,
     productName: input.productName,
     industry: input.industry,
     targetAudience: input.targetAudience,

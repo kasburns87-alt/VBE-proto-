@@ -19,12 +19,12 @@ Some validation remains deliberately pending rather than simulated. Resend deliv
 | Area | Evidence from the active project | Current status |
 |---|---|---|
 | Authentication and operational procedures | Protected tRPC procedures and user ID propagation in [`server/routers.ts`](../server/routers.ts) | Implemented |
-| Client and campaign ownership | User-owned foreign keys and owner-scoped queries in [`drizzle/schema.ts`](../drizzle/schema.ts) and [`server/clientOps.ts`](../server/clientOps.ts) | Implemented for current single-workspace model |
+| Client and campaign ownership | User-owned records, additive workspace linkage, and owner-scoped queries in [`drizzle/schema.ts`](../drizzle/schema.ts), [`server/db.ts`](../server/db.ts), and [`server/clientOps.ts`](../server/clientOps.ts) | New records are workspace-linked; legacy records remain user-owned and visible |
 | Email safety | Provider readiness, suppression, idempotency, threading, and signed unsubscribe controls in [`server/email.ts`](../server/email.ts) and [`server/operationsRoutes.ts`](../server/operationsRoutes.ts) | Implemented; live delivery disabled |
 | Analytics and executive evidence | Verified snapshots, source-labelled market signals, and purchase intelligence in [`server/marketingExecutive.ts`](../server/marketingExecutive.ts) | Implemented |
 | Storage | Validated proxy path checks plus centrally validated storage helpers in [`server/_core/storageProxy.ts`](../server/_core/storageProxy.ts) and [`server/storage.ts`](../server/storage.ts) | Hardened in this audit |
 | Dependency posture | `pnpm audit --prod` after upgrades | No known vulnerabilities |
-| Regression safety | `pnpm check`, `pnpm test`, and `pnpm build` | Passing; 53 tests passed and 2 isolated-database tests intentionally skipped |
+| Regression safety | `pnpm check`, `pnpm test`, and `pnpm build` | Passing; 57 tests passed and 2 isolated-database tests intentionally skipped |
 
 ## Audit Fixes Applied
 
@@ -57,6 +57,25 @@ PulseForge should consume an approved BrandForge snapshot and versioned creative
 
 LaunchPro should own leads, opportunities, bookings, client approvals, operational tasks, customer lifecycle status, and the audit history of decisions. It receives a versioned PulseForge campaign-pack manifest for review or execution and returns approval decisions by reference. It should not reinterpret ad-generation prompts or take ownership of BrandForge source assets.
 
+## Implemented Workspace Foundation
+
+PulseForge now has an additive workspace foundation that does not rewrite or delete any existing business data. The [`workspaces`](../drizzle/schema.ts) table establishes an owned business boundary, while [`workspaceMemberships`](../drizzle/schema.ts) records the allowed roles of `owner`, `admin`, `member`, and `viewer`. The protected [`workspace.context`](../server/routers.ts) procedure gives a signed-in user a default owner workspace on first use. Contract creation requires an owner or admin membership, and all contract reads verify membership.
+
+The [`moduleIntegrationContracts`](../drizzle/schema.ts) ledger stores versioned, idempotent cross-module envelopes. It supports the shared contract types listed above and always includes a workspace ID, creator, source and target module, contract version, entity reference, approval status, correlation ID, idempotency key, and bounded JSON payload. This is a private PulseForge boundary adapter; it does not yet claim to connect to BrandForge or LaunchPro services.
+
+New campaigns and clients now store an optional workspace reference at creation. Existing records remain unchanged with a null workspace reference and are still safely governed by their pre-existing user ownership. This preserves present workflows while avoiding unsafe bulk rewriting of customer records.
+
+## Incremental Workspace Migration Path
+
+| Step | Data treatment | Safety rule |
+|---|---|---|
+| 1. Create default workspace on first protected workspace access | Inserts one workspace and one owner membership for the authenticated user. | No campaign, client, communication, or analytics rows are modified. |
+| 2. Link new campaigns and clients at creation | Writes the default workspace ID alongside the existing user ID. | Existing user ownership predicates remain enforced. |
+| 3. Review legacy records | Identify null-workspace rows per user after a workspace selection experience is approved. | Do not bulk backfill until the owner confirms how historical records should map across teams. |
+| 4. Add workspace filters to read paths | Apply a selected workspace context while optionally including that user’s confirmed legacy records. | Preserve a separate owner predicate until tenant-wide policy and membership administration are complete. |
+| 5. Publish adapters | Create approved BrandForge asset references and PulseForge campaign pack manifests in the contract ledger. | Never share raw database rows, provider credentials, or unsanitized storage keys. |
+| 6. Expand to multi-member operations | Add invitation, role-change, and audit workflows. | All role changes require explicit policy checks and immutable audit events. |
+
 ## Shared Contract Catalog
 
 | Contract | Producer | Consumer | Minimum fields |
@@ -84,7 +103,7 @@ Every contract should include a version, workspace scope, actor/audit metadata, 
 
 ```text
 pnpm check                         # passed
-pnpm test                          # 53 passed; 2 isolated-db tests skipped
+pnpm test                          # 57 passed; 2 isolated-db tests skipped
 pnpm build                         # passed
 pnpm audit --prod                  # no known vulnerabilities found
 ```

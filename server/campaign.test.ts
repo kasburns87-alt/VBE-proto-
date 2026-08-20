@@ -51,4 +51,15 @@ describe("campaign helpers", () => {
     await expect(caller.clientOps.clients.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(caller.clientOps.clients.delete({ id: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
+
+  it("requires an authenticated user before accessing workspace boundaries or module contracts", async () => {
+    const caller = appRouter.createCaller({
+      user: null,
+      req: {} as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    });
+
+    await expect(caller.workspace.context()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.workspace.contracts.list({ workspaceId: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });

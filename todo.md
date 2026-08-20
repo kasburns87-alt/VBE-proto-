@@ -73,3 +73,7 @@
 - [x] Apply and verify priority audit fixes without enabling live outbound delivery or autonomous execution.
 - [x] Package the audited PulseForge source and an architecture/audit report for owner review.
 - [x] Define approved shared-account, asset, approval, and reporting contracts for distinct BrandForge, PulseForge, and LaunchPro modules.
+- [x] Add versioned workspace, membership, and module-integration contract schemas without migrating existing user-owned data yet.
+- [x] Add protected workspace context procedures that establish a user’s default workspace and membership boundary.
+- [x] Scope new integration records and initial campaign/client boundary adapters to the active workspace while preserving existing user-level access controls.
+- [x] Add automated contract and workspace-isolation tests, then document the incremental migration path for existing PulseForge records.

@@ -66,11 +66,12 @@ export async function getClient(userId: number, clientId: number) {
   return { ...client, campaigns: linkedCampaigns.map(campaign => ({ id: campaign.id, name: campaign.name || campaign.productName })) };
 }
 
-export async function createClient(userId: number, input: ClientInput) {
+export async function createClient(userId: number, input: ClientInput, workspaceId?: number) {
   const db = requireDb(await getDb());
   const campaignIds = await ownedCampaignIds(userId, input.campaignIds);
   const [insertResult] = await db.insert(clients).values({
     userId,
+    workspaceId: workspaceId || null,
     name: input.name,
     company: input.company || null,
     email: input.email.toLowerCase(),
