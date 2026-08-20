@@ -12,6 +12,24 @@ function emptyDb() {
   return { select: () => ({ from: () => ({ where: () => ({ limit: async () => [] }) }) }) };
 }
 
+function executiveDb(profile: any, run: any) {
+  const results = [[profile], [run]];
+  let index = 0;
+  const inserts: any[] = [];
+  return {
+    inserts,
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => results[index++] || [],
+          orderBy: () => ({ limit: async () => results[index++] || [] }),
+        }),
+      }),
+    }),
+    insert: () => ({ values: async (value: any) => { inserts.push(value); } }),
+  };
+}
+
 describe("marketing executive", () => {
   beforeEach(() => {
     Object.values(mocks).forEach(mock => mock.mockReset());
@@ -32,5 +50,23 @@ describe("marketing executive", () => {
     expect(signals.sources).toHaveLength(3);
     expect(signals.sources.map(source => source.status)).toEqual(["available", "unavailable", "available"]);
     expect(signals.sources[1].source).toContain("bounce rate");
+  });
+
+  it("persists a one-prompt recommendation with verified analytics and named source evidence", async () => {
+    const profile = { id: 12, userId: 3, businessName: "Luma", websiteDomain: "luma.example", industry: "Wellness", coreOffer: "Daily skin recovery", targetAudience: "Busy professionals", brandVoice: "Clear and warm", differentiators: null, strategicGoals: null, marketContext: null, guardrails: null };
+    const run = { id: 44, userId: 3, prompt: "What should we test next?", runType: "campaign_plan" };
+    const db = executiveDb(profile, run);
+    mocks.getDb.mockResolvedValue(db);
+    mocks.snapshots.mockResolvedValue([]);
+    mocks.dataApi.mockResolvedValue({ metric: "available" });
+    mocks.llm.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ executiveSummary: "Test a focused offer", whatIsWorking: [], watchouts: [], nextMove: { title: "Test", rationale: "No verified snapshots are available.", priority: "now" }, campaignMaterial: { concept: "Recovery routine", headline: "Your reset starts here", primaryText: "A daily recovery ritual.", cta: "Learn more", hashtags: ["#recovery"] }, researchBrief: { recommendedQuery: "wellness recovery trends", sourceNeed: "Verify demand with named sources", caveat: "No performance result is claimed." } }) } }] });
+
+    const result = await runMarketingExecutive({ userId: 3, prompt: "What should we test next?", runType: "campaign_plan" });
+
+    expect(mocks.reserveUsage).toHaveBeenCalledWith(3, "assistantRequests");
+    expect(result.evidence.verifiedAnalytics.snapshotCount).toBe(0);
+    expect(result.evidence.marketSignals.sources).toHaveLength(3);
+    expect(db.inserts[0].evidenceJson).toContain("Similarweb total visits");
+    expect(mocks.llm.mock.calls[0][0].messages[1].content).toContain("Source-attributed market signals");
   });
 });

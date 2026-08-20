@@ -47,9 +47,9 @@
 - [x] Add a persistent business intelligence profile with brand, audience, offer, market, and strategic guardrail context.
 - [x] Add a single-prompt personal marketing executive workspace that uses the saved business context to create adaptive campaign material.
 - [x] Add evidence-led performance diagnosis that distinguishes winners, underperformers, and next best creative actions from verified analytics.
-- [ ] Add market trend research with source transparency and approval-gated recommendations rather than autonomous publishing.
-- [ ] Add multi-source market signal retrieval and persist source-attributed evidence for executive runs.
-- [ ] Add automated executive-run tests for verified analytics diagnosis and source-transparent trend research fallbacks.
+- [x] Add market trend research with source transparency and approval-gated recommendations rather than autonomous publishing.
+- [x] Add multi-source market signal retrieval and persist source-attributed evidence for executive runs.
+- [x] Add automated executive-run tests for verified analytics diagnosis and source-transparent trend research fallbacks.
 - [ ] Verify populated executive diagnosis and trend-source states before treating the marketing executive as complete.
 - [x] Add readiness diagnostics that distinguish live delivery configuration from safe disabled-mode operation.
 - [x] Add explicit audit and operational status visibility for report/email webhook processing.
