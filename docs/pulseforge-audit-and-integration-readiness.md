@@ -78,6 +78,19 @@ The owner or an administrator must explicitly approve a profile or asset referen
 | Campaign selection | The campaign brief lists only approved profile and eligible asset references. | The selected references guide campaign creation; they do not automatically publish or attach a third-party asset. |
 | Audit boundary | Contract ID, version, workspace, creator, correlation ID, and idempotency key are retained. | Cross-product network synchronization remains a later adapter step. |
 
+## Implemented PulseForge-to-LaunchPro Handoff
+
+PulseForge can now create a workspace-scoped **campaign-pack manifest** once campaign generation is complete. The manifest is a draft contract addressed to LaunchPro and records campaign identity, platform coverage, a metadata-only asset manifest, approved BrandForge evidence where present, a correlation ID, and an idempotency key. It deliberately excludes signed file URLs, asset bytes, raw provider payloads, and credentials.
+
+The companion LaunchPro panel can record an externally confirmed `approved` or `rejected` decision against that manifest. It is an audit intake surface, not a launch button. An approved decision changes the visible review state only; it does not publish an ad, deliver email, schedule a workflow, create a booking, or change client records. Any future LaunchPro service may consume the same versioned contract, but it must perform its own authorization, opportunity, booking, and execution checks.
+
+| Handoff state | Meaning | What PulseForge does **not** do |
+|---|---|---|
+| No manifest | The campaign has not been submitted for LaunchPro review. | It does not infer approval from campaign readiness. |
+| Draft manifest | A reference-only campaign pack is available for review. | It does not copy assets or contact external services. |
+| Approved decision | A real owner or LaunchPro review has been recorded. | It does not publish, send, schedule, book, or execute. |
+| Rejected decision | Review feedback blocks the launch-review state. | It does not destroy the original campaign or mutate BrandForge records. |
+
 ## Incremental Workspace Migration Path
 
 | Step | Data treatment | Safety rule |

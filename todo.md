@@ -66,6 +66,10 @@
 - [x] Include only the selected approved BrandForge context and asset references in new PulseForge campaign briefs and generation evidence.
 - [x] Add campaign-generation regression coverage proving draft/restricted BrandForge references cannot influence campaigns.
 - [ ] Complete populated BrandForge-to-PulseForge visual verification using an owner-approved business profile and asset reference.
+- [x] Add workspace-scoped PulseForge campaign-pack manifests for LaunchPro review without publishing campaigns or copying provider credentials.
+- [x] Add protected LaunchPro approval-decision intake and show approval-gated launch readiness within PulseForge.
+- [x] Add regression coverage and documentation proving a campaign cannot be treated as approved or launched without an explicit LaunchPro decision.
+- [ ] Complete populated LaunchPro manifest and decision visual verification using an owner-approved campaign.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
 - [x] Add an in-app communications workspace with inbound and outbound client email records.
 - [x] Add configurable client follow-up and report scheduling controls with delivery history.

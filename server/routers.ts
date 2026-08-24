@@ -61,6 +61,7 @@ import { getBusinessProfile, listExecutiveRuns, runMarketingExecutive, saveBusin
 import { listPurchaseOutcomes, recordPurchaseOutcome } from "./purchaseIntelligence";
 import { createModuleIntegrationContract, getOrCreateDefaultWorkspace, listModuleIntegrationContracts, listWorkspacesForUser } from "./workspaces";
 import { listBrandForgeAssets, listBrandForgeProfiles, resolveApprovedBrandForgeContext, saveBrandForgeAsset, saveBrandForgeProfile, setBrandForgeReferenceStatus } from "./brandForge";
+import { createLaunchProManifest, getLaunchProReadiness, listLaunchProManifests, recordLaunchProDecision } from "./launchPro";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
 const analyticsFilterSchema = z.object({
@@ -175,6 +176,14 @@ const brandReferenceInput = z.object({
   correlationId: z.string().trim().min(8).max(120),
   idempotencyKey: z.string().trim().min(16).max(180),
 });
+const launchDecisionInput = z.object({
+  workspaceId: z.number().int().positive(),
+  manifestContractId: z.number().int().positive(),
+  decision: z.enum(["approved", "rejected"]),
+  rationale: z.string().trim().max(3_000).optional(),
+  correlationId: z.string().trim().min(8).max(120),
+  idempotencyKey: z.string().trim().min(16).max(180),
+});
 
 function decodeBase64(value: string) {
   const normalized = value.replace(/^data:[^;]+;base64,/, "");
@@ -234,6 +243,16 @@ export const appRouter = router({
       create: protectedProcedure.input(brandReferenceInput.extend({ payload: brandAssetPayloadSchema })).mutation(({ ctx, input }) => saveBrandForgeAsset(ctx.user.id, input)),
     }),
     setStatus: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive(), contractId: z.number().int().positive(), status: z.enum(["approved", "rejected", "superseded"]) })).mutation(({ ctx, input }) => setBrandForgeReferenceStatus(ctx.user.id, input.workspaceId, input.contractId, input.status)),
+  }),
+  launchPro: router({
+    manifests: router({
+      list: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listLaunchProManifests(ctx.user.id, input.workspaceId)),
+      create: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive(), campaignId: z.number().int().positive() })).mutation(({ ctx, input }) => createLaunchProManifest(ctx.user.id, input.workspaceId, input.campaignId)),
+    }),
+    readiness: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive(), campaignId: z.number().int().positive() })).query(({ ctx, input }) => getLaunchProReadiness(ctx.user.id, input.workspaceId, input.campaignId)),
+    decisions: router({
+      record: protectedProcedure.input(launchDecisionInput).mutation(({ ctx, input }) => recordLaunchProDecision(ctx.user.id, input)),
+    }),
   }),
   campaign: router({
     generate: protectedProcedure.input(briefSchema).mutation(async ({ ctx, input }) => {

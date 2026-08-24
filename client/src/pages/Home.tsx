@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignReadiness } from "@/components/CampaignReadiness";
+import { LaunchProHandoff } from "@/components/LaunchProHandoff";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
@@ -207,7 +208,7 @@ export default function Home() {
               <Button onClick={generateCampaign} disabled={generate.isPending} className="mt-2 h-12 w-full rounded-xl bg-gradient-to-r from-rose-200 to-violet-300 font-semibold text-[#241a2b] hover:from-rose-100 hover:to-violet-200">{generate.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating campaign pack...</> : <><WandSparkles className="mr-2 h-4 w-4" />Generate campaign pack</>}</Button>
             </div>
           </div>
-          {!campaign ? <EmptyCampaignState /> : <div className="space-y-5"><CampaignPack campaign={campaign} output={output} imageAssets={imageAssets} videoAsset={videoAsset} renderingMotion={renderingMotion} exporting={exporting} onRenderMotion={renderMotionCut} onExport={exportPack} /><CampaignReadiness campaign={campaign} output={output} imageAssets={imageAssets} hasMotion={Boolean(videoAsset)} /></div>}
+          {!campaign ? <EmptyCampaignState /> : <div className="space-y-5"><CampaignPack campaign={campaign} output={output} imageAssets={imageAssets} videoAsset={videoAsset} renderingMotion={renderingMotion} exporting={exporting} onRenderMotion={renderMotionCut} onExport={exportPack} /><CampaignReadiness campaign={campaign} output={output} imageAssets={imageAssets} hasMotion={Boolean(videoAsset)} /><LaunchProHandoff campaign={campaign} /></div>}
         </section>
       </main>
     </div>
