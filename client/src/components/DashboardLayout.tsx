@@ -18,12 +18,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Archive, BarChart3, BrainCircuit, Link2, LogOut, PanelLeft, Palette, Plus, Sparkles, UsersRound } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
+import { shouldCloseMobileNavigationAfterRouteChange } from "@/lib/mobileNavigation";
 
 const menuItems = [
   { icon: Palette, label: "BrandForge", path: "/brandforge" },
@@ -66,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 function DashboardLayoutContent({ children, sidebarWidth, setSidebarWidth }: { children: React.ReactNode; sidebarWidth: number; setSidebarWidth: (width: number) => void }) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -99,7 +101,7 @@ function DashboardLayoutContent({ children, sidebarWidth, setSidebarWidth }: { c
             {!isCollapsed && <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Workspace</p>}
             <SidebarMenu>
               {menuItems.map(item => <SidebarMenuItem key={item.path}>
-                <SidebarMenuButton isActive={location === item.path} onClick={() => setLocation(item.path)} tooltip={item.label} className="h-11 rounded-xl text-white/62 hover:bg-white/[0.07] hover:text-white data-[active=true]:bg-gradient-to-r data-[active=true]:from-rose-300/20 data-[active=true]:to-violet-300/15 data-[active=true]:text-white">
+                <SidebarMenuButton isActive={location === item.path} onClick={() => { setLocation(item.path); if (shouldCloseMobileNavigationAfterRouteChange(isMobile)) setOpenMobile(false); }} tooltip={item.label} className="h-11 rounded-xl text-white/62 hover:bg-white/[0.07] hover:text-white data-[active=true]:bg-gradient-to-r data-[active=true]:from-rose-300/20 data-[active=true]:to-violet-300/15 data-[active=true]:text-white">
                   <item.icon className="h-4 w-4" /><span>{item.label}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>)}
@@ -121,7 +123,7 @@ function DashboardLayoutContent({ children, sidebarWidth, setSidebarWidth }: { c
         </Sidebar>
         {!isCollapsed && <div className="absolute right-0 top-0 z-50 h-full w-1 cursor-col-resize hover:bg-rose-300/50" onMouseDown={() => setIsResizing(true)} aria-label={`Resize navigation, currently ${sidebarWidth}px`} />}
       </div>
-      <SidebarInset className="min-h-screen bg-[#0d0c16]">{children}</SidebarInset>
+      <SidebarInset className="min-h-screen bg-[#0d0c16]"><div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-white/[.07] bg-[#0d0c16]/95 px-4 backdrop-blur md:hidden"><div><p className="font-display text-lg leading-none text-white">PulseForge</p><p className="mt-1 text-[9px] font-bold uppercase tracking-[.16em] text-rose-200/75">Creative workspace</p></div><SidebarTrigger aria-label="Open workspace navigation" className="h-9 w-9 rounded-xl border border-white/10 bg-white/[.045] text-white hover:bg-white/10" /></div>{children}</SidebarInset>
     </>
   );
 }

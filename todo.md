@@ -81,6 +81,8 @@
 - [x] Add an owner-controlled executive prefill action that changes only the editable form and requires a separate manual save.
 - [x] Add regression coverage and documentation proving non-approved BrandForge profiles cannot prefill executive memory, and surface approved-profile query failures with an explicit retry control.
 - [ ] Complete populated approved-BrandForge executive-prefill visual verification using an owner-approved profile.
+- [x] Add an accessible mobile workspace navigation control so all PulseForge modules remain reachable at narrow viewport widths.
+- [x] Add responsive navigation regression coverage and visually validate the corrected mobile and desktop shell behavior.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
 - [x] Add an in-app communications workspace with inbound and outbound client email records.
 - [x] Add configurable client follow-up and report scheduling controls with delivery history.
