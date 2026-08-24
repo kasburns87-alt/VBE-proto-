@@ -105,6 +105,20 @@ These signals are **provenance records, not a second revenue source**. PulseForg
 | Idempotency | Each purchase outcome has one deterministic contract key, preventing duplicate publication. |
 | Executive evidence | Shared signals are labeled as audit provenance and never as incremental revenue. |
 
+## Implemented Integration Audit Ledger
+
+The owner can now open a workspace-scoped **Integration audit ledger** to review BrandForge, PulseForge, and LaunchPro handoffs in one place. It filters by participating module, contract type, and status, while showing the direction, version, correlation ID, review state, time, and a limited contract-specific summary.
+
+The ledger intentionally does not return raw contract payloads. Brand asset URLs, customer references, client identifiers, internal notes, storage locations, file bytes, mail-provider payloads, and credentials are excluded before the response reaches the interface. Contract listing retains the same workspace-membership enforcement used by the underlying integration ledger, so a user without access receives no workspace history.
+
+| Ledger element | Visible | Deliberately withheld |
+|---|---|---|
+| Brand profile handoff | Brand name and voice summary | Full profile payload and guardrail text |
+| Brand asset handoff | Name, type, version, rights state | Asset URL, file, and storage location |
+| Campaign manifest | Campaign name, platform count, asset-reference count | Signed file URLs and asset bytes |
+| Approval decision | State and bounded rationale | Any unrelated approval payload fields |
+| Outcome signal | Offer, channel, and outcome state | Customer, client, notes, and revenue re-aggregation |
+
 ## Incremental Workspace Migration Path
 
 | Step | Data treatment | Safety rule |

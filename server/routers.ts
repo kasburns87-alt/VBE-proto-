@@ -63,6 +63,7 @@ import { createModuleIntegrationContract, getOrCreateDefaultWorkspace, listModul
 import { listBrandForgeAssets, listBrandForgeProfiles, resolveApprovedBrandForgeContext, saveBrandForgeAsset, saveBrandForgeProfile, setBrandForgeReferenceStatus } from "./brandForge";
 import { createLaunchProManifest, getLaunchProReadiness, listLaunchProManifests, recordLaunchProDecision } from "./launchPro";
 import { listOutcomeSignals, publishOutcomeSignal } from "./outcomeSignals";
+import { listIntegrationLedger } from "./integrationLedger";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
 const analyticsFilterSchema = z.object({
@@ -185,6 +186,12 @@ const launchDecisionInput = z.object({
   correlationId: z.string().trim().min(8).max(120),
   idempotencyKey: z.string().trim().min(16).max(180),
 });
+const ledgerFilterSchema = z.object({
+  workspaceId: z.number().int().positive(),
+  module: z.enum(["all", "brandforge", "pulseforge", "launchpro"]).optional(),
+  contractType: z.enum(["all", "brand_profile_snapshot", "brand_asset_reference", "campaign_pack_manifest", "approval_decision", "outcome_signal"]).optional(),
+  status: z.enum(["all", "draft", "approved", "rejected", "superseded"]).optional(),
+});
 
 function decodeBase64(value: string) {
   const normalized = value.replace(/^data:[^;]+;base64,/, "");
@@ -233,6 +240,7 @@ export const appRouter = router({
       list: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listModuleIntegrationContracts(ctx.user.id, input.workspaceId)),
       create: protectedProcedure.input(integrationContractSchema).mutation(({ ctx, input }) => createModuleIntegrationContract(ctx.user.id, input)),
     }),
+    ledger: protectedProcedure.input(ledgerFilterSchema).query(({ ctx, input }) => listIntegrationLedger(ctx.user.id, input.workspaceId, input)),
   }),
   brandForge: router({
     profiles: router({

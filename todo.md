@@ -74,6 +74,9 @@
 - [x] Add protected outcome-signal review controls and incorporate approved outcome contracts into marketing executive evidence without double counting.
 - [x] Add regression coverage and documentation proving only verified owned purchase data can become a shared outcome signal.
 - [ ] Complete populated outcome-signal visual verification using an owner-recorded purchase outcome.
+- [x] Add protected workspace-scoped integration ledger aggregation with safe, non-secret contract summaries.
+- [x] Build an owner integration-audit workspace with module, contract-type, and approval-state filters, including explicit workspace and ledger query failure recovery.
+- [x] Add regression coverage, visual validation, and documentation proving ledger visibility remains within workspace membership boundaries.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
 - [x] Add an in-app communications workspace with inbound and outbound client email records.
 - [x] Add configurable client follow-up and report scheduling controls with delivery history.
