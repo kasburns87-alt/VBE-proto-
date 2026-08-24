@@ -60,7 +60,7 @@ import { processClientFollowUpSchedule } from "./followUps";
 import { getBusinessProfile, listExecutiveRuns, runMarketingExecutive, saveBusinessProfile } from "./marketingExecutive";
 import { listPurchaseOutcomes, recordPurchaseOutcome } from "./purchaseIntelligence";
 import { createModuleIntegrationContract, getOrCreateDefaultWorkspace, listModuleIntegrationContracts, listWorkspacesForUser } from "./workspaces";
-import { listBrandForgeAssets, listBrandForgeProfiles, resolveApprovedBrandForgeContext, saveBrandForgeAsset, saveBrandForgeProfile, setBrandForgeReferenceStatus } from "./brandForge";
+import { listApprovedBrandForgeProfiles, listBrandForgeAssets, listBrandForgeProfiles, resolveApprovedBrandForgeContext, saveBrandForgeAsset, saveBrandForgeProfile, setBrandForgeReferenceStatus } from "./brandForge";
 import { createLaunchProManifest, getLaunchProReadiness, listLaunchProManifests, recordLaunchProDecision } from "./launchPro";
 import { listOutcomeSignals, publishOutcomeSignal } from "./outcomeSignals";
 import { listIntegrationLedger } from "./integrationLedger";
@@ -245,6 +245,7 @@ export const appRouter = router({
   brandForge: router({
     profiles: router({
       list: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listBrandForgeProfiles(ctx.user.id, input.workspaceId)),
+      listApproved: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listApprovedBrandForgeProfiles(ctx.user.id, input.workspaceId)),
       create: protectedProcedure.input(brandReferenceInput.extend({ payload: brandProfilePayloadSchema })).mutation(({ ctx, input }) => saveBrandForgeProfile(ctx.user.id, input)),
     }),
     assets: router({

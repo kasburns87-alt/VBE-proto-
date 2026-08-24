@@ -7,7 +7,7 @@ vi.mock("./workspaces", () => ({
   setModuleIntegrationContractStatus: mocks.setContractStatus,
 }));
 
-import { resolveApprovedBrandForgeContext, setBrandForgeReferenceStatus } from "./brandForge";
+import { listApprovedBrandForgeProfiles, resolveApprovedBrandForgeContext, setBrandForgeReferenceStatus } from "./brandForge";
 
 function contract(overrides: Record<string, unknown>) {
   return {
@@ -46,6 +46,16 @@ describe("BrandForge approval boundary", () => {
     const context = await resolveApprovedBrandForgeContext(4, 9, 1, [2]);
     expect(context).toMatchObject({ profile: { contractId: 1, brandName: "VBE" }, assets: [{ contractId: 2, assetName: "Hero image", rightsStatus: "approved" }] });
     expect(JSON.stringify(context)).not.toContain("https://brand.example/hero.jpg");
+  });
+
+  it("exposes only approved profiles to the executive-prefill retrieval path", async () => {
+    mocks.listContracts.mockResolvedValue([
+      contract({ id: 1, status: "approved" }),
+      contract({ id: 2, status: "draft" }),
+      contract({ id: 3, status: "rejected" }),
+      contract({ id: 4, status: "superseded" }),
+    ]);
+    await expect(listApprovedBrandForgeProfiles(4, 9)).resolves.toMatchObject([{ id: 1, status: "approved" }]);
   });
 
   it("does not let the BrandForge status control mutate a non-BrandForge contract", async () => {

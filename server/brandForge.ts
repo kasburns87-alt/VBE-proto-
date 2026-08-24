@@ -34,6 +34,10 @@ export async function listBrandForgeProfiles(userId: number, workspaceId: number
     .map(contract => toReference<BrandProfilePayload>(contract));
 }
 
+export async function listApprovedBrandForgeProfiles(userId: number, workspaceId: number) {
+  return (await listBrandForgeProfiles(userId, workspaceId)).filter(profile => profile.status === "approved");
+}
+
 export async function listBrandForgeAssets(userId: number, workspaceId: number) {
   const contracts = await listModuleIntegrationContracts(userId, workspaceId);
   return contracts.filter(contract => contract.sourceModule === "brandforge" && contract.contractType === "brand_asset_reference")

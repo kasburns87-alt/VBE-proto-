@@ -119,6 +119,14 @@ The ledger intentionally does not return raw contract payloads. Brand asset URLs
 | Approval decision | State and bounded rationale | Any unrelated approval payload fields |
 | Outcome signal | Offer, channel, and outcome state | Customer, client, notes, and revenue re-aggregation |
 
+## Implemented BrandForge-to-Executive Prefill
+
+The Marketing Executive can now retrieve **only approved** BrandForge profile snapshots from the active workspace. The owner selects a profile and presses **Prefill**, which copies the approved brand name, positioning, voice, messaging pillars, and guardrails into the editable business-memory form. The action does not write to the business profile automatically; the owner must inspect the populated fields and separately choose **Save business memory**.
+
+Draft, rejected, and superseded BrandForge profiles are excluded by the protected retrieval procedure. The prefill flow does not copy brand asset URLs, files, storage references, or any external credentials.
+
+If the approved-profile request is still loading, the control identifies that state. If it fails, PulseForge shows a specific retry control and confirms that business memory has not changed; it does not present a failed protected query as an empty approved-profile list.
+
 ## Incremental Workspace Migration Path
 
 | Step | Data treatment | Safety rule |

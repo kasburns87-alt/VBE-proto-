@@ -77,6 +77,10 @@
 - [x] Add protected workspace-scoped integration ledger aggregation with safe, non-secret contract summaries.
 - [x] Build an owner integration-audit workspace with module, contract-type, and approval-state filters, including explicit workspace and ledger query failure recovery.
 - [x] Add regression coverage, visual validation, and documentation proving ledger visibility remains within workspace membership boundaries.
+- [x] Add protected retrieval of approved workspace BrandForge profiles for optional executive-memory prefill.
+- [x] Add an owner-controlled executive prefill action that changes only the editable form and requires a separate manual save.
+- [x] Add regression coverage and documentation proving non-approved BrandForge profiles cannot prefill executive memory, and surface approved-profile query failures with an explicit retry control.
+- [ ] Complete populated approved-BrandForge executive-prefill visual verification using an owner-approved profile.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
 - [x] Add an in-app communications workspace with inbound and outbound client email records.
 - [x] Add configurable client follow-up and report scheduling controls with delivery history.
