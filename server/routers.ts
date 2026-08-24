@@ -62,6 +62,7 @@ import { listPurchaseOutcomes, recordPurchaseOutcome } from "./purchaseIntellige
 import { createModuleIntegrationContract, getOrCreateDefaultWorkspace, listModuleIntegrationContracts, listWorkspacesForUser } from "./workspaces";
 import { listBrandForgeAssets, listBrandForgeProfiles, resolveApprovedBrandForgeContext, saveBrandForgeAsset, saveBrandForgeProfile, setBrandForgeReferenceStatus } from "./brandForge";
 import { createLaunchProManifest, getLaunchProReadiness, listLaunchProManifests, recordLaunchProDecision } from "./launchPro";
+import { listOutcomeSignals, publishOutcomeSignal } from "./outcomeSignals";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
 const analyticsFilterSchema = z.object({
@@ -252,6 +253,10 @@ export const appRouter = router({
     readiness: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive(), campaignId: z.number().int().positive() })).query(({ ctx, input }) => getLaunchProReadiness(ctx.user.id, input.workspaceId, input.campaignId)),
     decisions: router({
       record: protectedProcedure.input(launchDecisionInput).mutation(({ ctx, input }) => recordLaunchProDecision(ctx.user.id, input)),
+    }),
+    outcomeSignals: router({
+      list: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listOutcomeSignals(ctx.user.id, input.workspaceId)),
+      publish: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive(), purchaseOutcomeId: z.number().int().positive() })).mutation(({ ctx, input }) => publishOutcomeSignal(ctx.user.id, input.workspaceId, input.purchaseOutcomeId)),
     }),
   }),
   campaign: router({

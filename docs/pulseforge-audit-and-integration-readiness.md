@@ -91,6 +91,20 @@ The companion LaunchPro panel can record an externally confirmed `approved` or `
 | Approved decision | A real owner or LaunchPro review has been recorded. | It does not publish, send, schedule, book, or execute. |
 | Rejected decision | Review feedback blocks the launch-review state. | It does not destroy the original campaign or mutate BrandForge records. |
 
+## Implemented Purchase-Outcome Signal Handoff
+
+Verified purchase outcomes can now be published deliberately from PulseForge to a workspace-scoped LaunchPro `outcome_signal` contract. The signal carries only the outcome identifier, offer, amount, currency, acquisition channel, outcome state, purchase date, optional campaign identifier, and publication time. Customer references, client IDs, internal notes, raw communications, asset files, and provider credentials are excluded.
+
+These signals are **provenance records, not a second revenue source**. PulseForge’s marketing executive continues to calculate revenue only from its verified purchase-outcome ledger. It may display shared signal identifiers to explain the cross-module audit trail, but its system prompt and evidence model explicitly prohibit adding outcome signals to revenue totals a second time.
+
+| Control | Enforced behavior |
+|---|---|
+| Ownership | Publishing first resolves the requested record from the signed-in user’s purchase-outcome list. |
+| Workspace boundary | An owner or administrator membership is required for the selected workspace. |
+| Privacy | Customer, client, note, storage, and provider fields are not included in the contract payload. |
+| Idempotency | Each purchase outcome has one deterministic contract key, preventing duplicate publication. |
+| Executive evidence | Shared signals are labeled as audit provenance and never as incremental revenue. |
+
 ## Incremental Workspace Migration Path
 
 | Step | Data treatment | Safety rule |
