@@ -59,6 +59,8 @@
 - [x] Expose recent webhook audit event details in the client operations workspace.
 - [x] Add deterministic provider-gating and signed unsubscribe regression coverage without live credentials.
 - [ ] Run credentialed Resend verification for sends, lifecycle events, Receiving replies, and schedule gating; record evidence before activation.
+- [ ] Review supplied Resend DNS evidence against the sender and receiving-subdomain release requirements without enabling live delivery.
+- [ ] Prepare an owner-controlled Resend credential and end-to-end verification path that retains provider gating until explicit approval.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
 - [x] Add an in-app communications workspace with inbound and outbound client email records.
 - [x] Add configurable client follow-up and report scheduling controls with delivery history.
