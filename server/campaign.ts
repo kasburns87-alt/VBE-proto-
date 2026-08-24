@@ -12,6 +12,10 @@ export type CampaignBrief = {
   goal: string;
   tone: string;
   platforms: AdPlatform[];
+  brandForgeContext?: {
+    profile?: { brandName: string; positioning: string; brandVoice: string; visualDirection: string; messagingPillars: string[]; guardrails?: string; contractId: number; version: string };
+    assets: Array<{ assetName: string; assetVersion: string; assetType: string; usageNotes?: string; rightsStatus: "approved" | "restricted"; contractId: number; version: string }>;
+  };
 };
 
 export const CREATIVE_SPECS: Array<{
@@ -135,11 +139,11 @@ export async function generateCampaignBlueprint(brief: CampaignBrief): Promise<C
     messages: [
       {
         role: "system",
-        content: "You are the strategy director at an elite performance creative studio. Produce commercially specific advertising recommendations. Trend insights must be framed as timely directional signals, not unverifiable statistics or claims of real-time data. Do not fabricate facts, audience sizes, or performance results. Keep each platform native, original, and compliant with mainstream ad standards.",
+        content: "You are the strategy director at an elite performance creative studio. Produce commercially specific advertising recommendations. Trend insights must be framed as timely directional signals, not unverifiable statistics or claims of real-time data. Do not fabricate facts, audience sizes, or performance results. Keep each platform native, original, and compliant with mainstream ad standards. When an approved BrandForge context is supplied, respect it as a creative constraint; do not invent other brand assets, approvals, or rights.",
       },
       {
         role: "user",
-        content: `Create one integrated campaign pack from this brief. Product or brand: ${brief.productName}. Industry: ${brief.industry}. Target audience: ${brief.targetAudience}. Goal: ${brief.goal}. Preferred tone: ${brief.tone}. Prioritized platforms: ${brief.platforms.join(", ")}. Return every requested platform even if it is not prioritized. Ensure copy is concise and format-specific.`,
+        content: `Create one integrated campaign pack from this brief. Product or brand: ${brief.productName}. Industry: ${brief.industry}. Target audience: ${brief.targetAudience}. Goal: ${brief.goal}. Preferred tone: ${brief.tone}. Prioritized platforms: ${brief.platforms.join(", ")}. Approved BrandForge context (may be absent): ${JSON.stringify(brief.brandForgeContext || null)}. Return every requested platform even if it is not prioritized. Ensure copy is concise and format-specific.`,
       },
     ],
   });
@@ -152,7 +156,9 @@ export async function generateCampaignImages(brief: CampaignBrief, blueprint: Ca
   const specs = CREATIVE_SPECS.filter(spec => brief.platforms.includes(spec.platform));
   return Promise.all(specs.map(async spec => {
     const direction = blueprint.platforms[spec.platform].imageDirection;
-    const prompt = `Create a premium paid social advertising visual for ${brief.productName} in the ${brief.industry} industry. Purpose: ${brief.goal}. Audience: ${brief.targetAudience}. Campaign angle: ${blueprint.executiveAngle}. Art direction: ${direction}. Composition: ${spec.orientation}, a clear focal point, sophisticated depth and texture, and a generous text-safe area. Style: polished editorial commercial photography or art direction, modern, refined, high-contrast enough for mobile viewing. Text/content to render: no text, no logos, no watermarks. Constraints: the image must remain visually coherent when delivered at ${spec.width} by ${spec.height} pixels. Avoid: generic stock-photo poses, clutter, interface mockups, illegible text, trademarked platform logos.`;
+    const approvedBrandDirection = brief.brandForgeContext?.profile ? ` Approved BrandForge direction: ${brief.brandForgeContext.profile.visualDirection}. Brand voice: ${brief.brandForgeContext.profile.brandVoice}. Messaging pillars: ${brief.brandForgeContext.profile.messagingPillars.join(", ")}.` : "";
+    const approvedAssetReferences = brief.brandForgeContext?.assets.length ? ` Approved reference names only: ${brief.brandForgeContext.assets.map(asset => `${asset.assetName} (${asset.assetType}, ${asset.assetVersion})`).join(", ")}. Do not recreate logos, copy external files, or imply asset usage beyond this directional reference.` : "";
+    const prompt = `Create a premium paid social advertising visual for ${brief.productName} in the ${brief.industry} industry. Purpose: ${brief.goal}. Audience: ${brief.targetAudience}. Campaign angle: ${blueprint.executiveAngle}. Art direction: ${direction}.${approvedBrandDirection}${approvedAssetReferences} Composition: ${spec.orientation}, a clear focal point, sophisticated depth and texture, and a generous text-safe area. Style: polished editorial commercial photography or art direction, modern, refined, high-contrast enough for mobile viewing. Text/content to render: no text, no logos, no watermarks. Constraints: the image must remain visually coherent when delivered at ${spec.width} by ${spec.height} pixels. Avoid: generic stock-photo poses, clutter, interface mockups, illegible text, trademarked platform logos.`;
     const generated = await generateImage({ prompt, quality: "high" });
     if (!generated.url) throw new Error(`Image generation did not return a ${spec.label} asset.`);
     const sourceKey = getAssetKeyFromUrl(generated.url);

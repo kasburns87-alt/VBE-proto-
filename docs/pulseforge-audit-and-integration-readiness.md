@@ -65,6 +65,19 @@ The [`moduleIntegrationContracts`](../drizzle/schema.ts) ledger stores versioned
 
 New campaigns and clients now store an optional workspace reference at creation. Existing records remain unchanged with a null workspace reference and are still safely governed by their pre-existing user ownership. This preserves present workflows while avoiding unsafe bulk rewriting of customer records.
 
+## Implemented BrandForge-to-PulseForge Handoff
+
+PulseForge now includes a dedicated **BrandForge intake** workspace. It captures a draft brand profile snapshot—positioning, voice, visual direction, messaging pillars, and guardrails—and external asset references. Each item is stored as a versioned BrandForge contract inside the current workspace. The interface deliberately stores a reference URL and usage metadata rather than importing, copying, or treating the referenced source file as a PulseForge asset.
+
+The owner or an administrator must explicitly approve a profile or asset reference. A campaign may select only an approved profile and assets whose contract is approved **and** whose usage-rights state is `approved`. Draft, rejected, superseded, restricted, missing, or cross-workspace references are rejected before a campaign record is created. When approved context is selected, PulseForge sends concise direction and reference names into the campaign-planning and image-direction prompts; it never fetches, recreates, embeds, or represents external BrandForge files as if they had been transferred.
+
+| Handoff element | Current behavior | Explicit limit |
+|---|---|---|
+| Brand profile | Owner saves a versioned draft and approves it before selection. | The profile is a creative constraint, not a claim of automatic brand ownership or marketing approval. |
+| Asset reference | Owner records a URL, type, version, use notes, and rights status. | The URL is not downloaded, copied, or served by PulseForge. |
+| Campaign selection | The campaign brief lists only approved profile and eligible asset references. | The selected references guide campaign creation; they do not automatically publish or attach a third-party asset. |
+| Audit boundary | Contract ID, version, workspace, creator, correlation ID, and idempotency key are retained. | Cross-product network synchronization remains a later adapter step. |
+
 ## Incremental Workspace Migration Path
 
 | Step | Data treatment | Safety rule |

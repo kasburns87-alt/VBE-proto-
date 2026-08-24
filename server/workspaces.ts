@@ -103,3 +103,14 @@ export async function listModuleIntegrationContracts(userId: number, workspaceId
     .orderBy(desc(moduleIntegrationContracts.createdAt))
     .limit(100);
 }
+
+export async function setModuleIntegrationContractStatus(userId: number, workspaceId: number, contractId: number, status: "draft" | "approved" | "rejected" | "superseded") {
+  const db = requireDb(await getDb());
+  await requireWorkspaceMembership(userId, workspaceId, ["owner", "admin"]);
+  const [contract] = await db.select().from(moduleIntegrationContracts)
+    .where(and(eq(moduleIntegrationContracts.id, contractId), eq(moduleIntegrationContracts.workspaceId, workspaceId)))
+    .limit(1);
+  if (!contract) throw new Error("Integration contract not found in this workspace.");
+  await db.update(moduleIntegrationContracts).set({ status }).where(and(eq(moduleIntegrationContracts.id, contractId), eq(moduleIntegrationContracts.workspaceId, workspaceId)));
+  return { ...contract, status };
+}

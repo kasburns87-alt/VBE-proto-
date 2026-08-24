@@ -61,6 +61,11 @@
 - [ ] Run credentialed Resend verification for sends, lifecycle events, Receiving replies, and schedule gating; record evidence before activation.
 - [ ] Review supplied Resend DNS evidence against the sender and receiving-subdomain release requirements without enabling live delivery.
 - [ ] Prepare an owner-controlled Resend credential and end-to-end verification path that retains provider gating until explicit approval.
+- [x] Add workspace-scoped owner-approved BrandForge profile snapshots and asset references without storing or copying external source files.
+- [x] Add protected BrandForge intake procedures and a focused PulseForge control surface for reviewing approved creative context.
+- [x] Include only the selected approved BrandForge context and asset references in new PulseForge campaign briefs and generation evidence.
+- [x] Add campaign-generation regression coverage proving draft/restricted BrandForge references cannot influence campaigns.
+- [ ] Complete populated BrandForge-to-PulseForge visual verification using an owner-approved business profile and asset reference.
 - [x] Add user-owned client profiles with relationship context, campaign associations, and personal rapport details.
 - [x] Add an in-app communications workspace with inbound and outbound client email records.
 - [x] Add configurable client follow-up and report scheduling controls with delivery history.

@@ -60,6 +60,7 @@ import { processClientFollowUpSchedule } from "./followUps";
 import { getBusinessProfile, listExecutiveRuns, runMarketingExecutive, saveBusinessProfile } from "./marketingExecutive";
 import { listPurchaseOutcomes, recordPurchaseOutcome } from "./purchaseIntelligence";
 import { createModuleIntegrationContract, getOrCreateDefaultWorkspace, listModuleIntegrationContracts, listWorkspacesForUser } from "./workspaces";
+import { listBrandForgeAssets, listBrandForgeProfiles, resolveApprovedBrandForgeContext, saveBrandForgeAsset, saveBrandForgeProfile, setBrandForgeReferenceStatus } from "./brandForge";
 
 const platforms = ["meta", "tiktok", "youtube"] as const;
 const analyticsFilterSchema = z.object({
@@ -93,6 +94,8 @@ const briefSchema = z.object({
   goal: z.string().trim().min(2).max(160),
   tone: z.string().trim().min(2).max(120),
   platforms: z.array(z.enum(platforms)).min(1),
+  brandForgeProfileId: z.number().int().positive().optional(),
+  brandForgeAssetIds: z.array(z.number().int().positive()).max(20).optional(),
 });
 const clientInputSchema = z.object({
   name: z.string().trim().min(2).max(160),
@@ -151,6 +154,27 @@ const integrationContractSchema = z.object({
   correlationId: z.string().trim().min(8).max(120),
   idempotencyKey: z.string().trim().min(16).max(180),
 });
+const brandProfilePayloadSchema = z.object({
+  brandName: z.string().trim().min(2).max(180),
+  positioning: z.string().trim().min(10).max(3_000),
+  brandVoice: z.string().trim().min(2).max(180),
+  visualDirection: z.string().trim().min(10).max(3_000),
+  messagingPillars: z.array(z.string().trim().min(2).max(300)).min(1).max(8),
+  guardrails: z.string().trim().max(3_000).optional(),
+});
+const brandAssetPayloadSchema = z.object({
+  assetName: z.string().trim().min(2).max(180),
+  assetVersion: z.string().trim().min(1).max(80),
+  assetUrl: z.string().url().max(2_000),
+  assetType: z.enum(["logo", "image", "video", "template", "guideline"]),
+  usageNotes: z.string().trim().max(2_000).optional(),
+  rightsStatus: z.enum(["approved", "restricted"]),
+});
+const brandReferenceInput = z.object({
+  workspaceId: z.number().int().positive(),
+  correlationId: z.string().trim().min(8).max(120),
+  idempotencyKey: z.string().trim().min(16).max(180),
+});
 
 function decodeBase64(value: string) {
   const normalized = value.replace(/^data:[^;]+;base64,/, "");
@@ -200,17 +224,31 @@ export const appRouter = router({
       create: protectedProcedure.input(integrationContractSchema).mutation(({ ctx, input }) => createModuleIntegrationContract(ctx.user.id, input)),
     }),
   }),
+  brandForge: router({
+    profiles: router({
+      list: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listBrandForgeProfiles(ctx.user.id, input.workspaceId)),
+      create: protectedProcedure.input(brandReferenceInput.extend({ payload: brandProfilePayloadSchema })).mutation(({ ctx, input }) => saveBrandForgeProfile(ctx.user.id, input)),
+    }),
+    assets: router({
+      list: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive() })).query(({ ctx, input }) => listBrandForgeAssets(ctx.user.id, input.workspaceId)),
+      create: protectedProcedure.input(brandReferenceInput.extend({ payload: brandAssetPayloadSchema })).mutation(({ ctx, input }) => saveBrandForgeAsset(ctx.user.id, input)),
+    }),
+    setStatus: protectedProcedure.input(z.object({ workspaceId: z.number().int().positive(), contractId: z.number().int().positive(), status: z.enum(["approved", "rejected", "superseded"]) })).mutation(({ ctx, input }) => setBrandForgeReferenceStatus(ctx.user.id, input.workspaceId, input.contractId, input.status)),
+  }),
   campaign: router({
     generate: protectedProcedure.input(briefSchema).mutation(async ({ ctx, input }) => {
       await reserveMonthlyUsage(ctx.user.id, "campaignGenerations");
       const workspace = await getOrCreateDefaultWorkspace(ctx.user.id, ctx.user.name);
-      const campaign = await createCampaign({ ...input, userId: ctx.user.id, workspaceId: workspace.workspace.id });
+      const { brandForgeProfileId, brandForgeAssetIds, ...campaignInput } = input;
+      const brandForgeContext = await resolveApprovedBrandForgeContext(ctx.user.id, workspace.workspace.id, brandForgeProfileId, brandForgeAssetIds || []);
+      const brief = { ...campaignInput, brandForgeContext };
+      const campaign = await createCampaign({ ...campaignInput, brandForgeContext, userId: ctx.user.id, workspaceId: workspace.workspace.id });
       try {
-        const blueprint = await generateCampaignBlueprint(input);
-        const assets = await generateCampaignImages(input, blueprint, { userId: ctx.user.id, campaignId: campaign.id });
+        const blueprint = await generateCampaignBlueprint(brief);
+        const assets = await generateCampaignImages(brief, blueprint, { userId: ctx.user.id, campaignId: campaign.id });
         await updateCampaignOutput(ctx.user.id, campaign.id, {
           campaignName: blueprint.campaignName,
-          insightsJson: JSON.stringify(blueprint),
+          insightsJson: JSON.stringify({ ...blueprint, brandForgeEvidence: brandForgeContext || null }),
           status: "complete",
         });
         await saveCampaignAssets(ctx.user.id, campaign.id, assets);

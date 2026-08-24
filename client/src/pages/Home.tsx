@@ -46,7 +46,7 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const requestedId = Number(new URLSearchParams(search).get("campaign"));
-  const [brief, setBrief] = useState({ productName: "", industry: "", targetAudience: "", goal: goals[0], tone: tones[1], platforms: ["meta", "tiktok", "youtube"] as Platform[] });
+  const [brief, setBrief] = useState({ productName: "", industry: "", targetAudience: "", goal: goals[0], tone: tones[1], platforms: ["meta", "tiktok", "youtube"] as Platform[], brandForgeProfileId: undefined as number | undefined, brandForgeAssetIds: [] as number[] });
   const [campaign, setCampaign] = useState<CampaignData | null>(null);
   const [renderingMotion, setRenderingMotion] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -55,6 +55,13 @@ export default function Home() {
   const generate = trpc.campaign.generate.useMutation();
   const saveMedia = trpc.campaign.saveGeneratedMedia.useMutation();
   const saveExport = trpc.campaign.saveExport.useMutation();
+  const workspaceQuery = trpc.workspace.context.useQuery();
+  const workspaceId = workspaceQuery.data?.workspace.id;
+  const workspaceInput = useMemo(() => ({ workspaceId: workspaceId || 0 }), [workspaceId]);
+  const brandProfilesQuery = trpc.brandForge.profiles.list.useQuery(workspaceInput, { enabled: Boolean(workspaceId) });
+  const brandAssetsQuery = trpc.brandForge.assets.list.useQuery(workspaceInput, { enabled: Boolean(workspaceId) });
+  const approvedProfiles = (brandProfilesQuery.data || []).filter(profile => profile.status === "approved");
+  const approvedAssets = (brandAssetsQuery.data || []).filter(asset => asset.status === "approved" && asset.payload.rightsStatus === "approved");
 
   useEffect(() => {
     if (campaignQuery.data) setCampaign(campaignQuery.data);
@@ -65,7 +72,7 @@ export default function Home() {
   const imageAssets = assets.filter((asset: any) => asset.assetType === "image");
   const videoAsset = assets.find((asset: any) => asset.assetType === "video");
 
-  const changeBrief = (field: string, value: string | Platform[]) => setBrief(previous => ({ ...previous, [field]: value }));
+  const changeBrief = (field: string, value: unknown) => setBrief(previous => ({ ...previous, [field]: value }));
   const togglePlatform = (platform: Platform) => {
     setBrief(previous => ({ ...previous, platforms: previous.platforms.includes(platform) ? previous.platforms.filter(item => item !== platform) : [...previous.platforms, platform] }));
   };
@@ -196,6 +203,7 @@ export default function Home() {
               <div><Label htmlFor="audience" className="text-xs text-white/65">Target audience</Label><Textarea id="audience" value={brief.targetAudience} onChange={event => changeBrief("targetAudience", event.target.value)} placeholder="Describe their mindset, context, and need." className="mt-2 min-h-[88px] border-white/10 bg-white/[0.045] text-white placeholder:text-white/25" /></div>
               <div className="grid grid-cols-2 gap-3"><div><Label className="text-xs text-white/65">Goal</Label><select value={brief.goal} onChange={event => changeBrief("goal", event.target.value)} className="mt-2 h-10 w-full rounded-md border border-white/10 bg-[#201d2b] px-3 text-xs text-white outline-none focus:ring-2 focus:ring-rose-200/60">{goals.map(goal => <option key={goal}>{goal}</option>)}</select></div><div><Label className="text-xs text-white/65">Tone</Label><select value={brief.tone} onChange={event => changeBrief("tone", event.target.value)} className="mt-2 h-10 w-full rounded-md border border-white/10 bg-[#201d2b] px-3 text-xs text-white outline-none focus:ring-2 focus:ring-rose-200/60">{tones.map(tone => <option key={tone}>{tone}</option>)}</select></div></div>
               <div><Label className="text-xs text-white/65">Platforms</Label><div className="mt-2 grid grid-cols-3 gap-2">{(Object.keys(platformMeta) as Platform[]).map(platform => <button type="button" key={platform} onClick={() => togglePlatform(platform)} className={`rounded-xl border px-2 py-2 text-xs font-semibold transition ${brief.platforms.includes(platform) ? "border-rose-200/50 bg-rose-200/15 text-white" : "border-white/10 bg-white/[.03] text-white/45 hover:bg-white/[.07]"}`}>{brief.platforms.includes(platform) && <Check className="mr-1 inline h-3 w-3" />}{platformMeta[platform].label}</button>)}</div></div>
+              <div className="rounded-2xl border border-violet-200/15 bg-violet-300/[.055] p-3"><div className="flex items-start justify-between gap-3"><div><Label className="text-xs text-violet-100">Approved BrandForge context</Label><p className="mt-1 text-[11px] leading-4 text-white/45">Optional. Only approved references with approved usage rights can shape this campaign.</p></div><button type="button" onClick={() => setLocation("/brandforge")} className="text-[11px] font-semibold text-violet-200 hover:text-violet-100">Manage</button></div><select value={brief.brandForgeProfileId || ""} onChange={event => changeBrief("brandForgeProfileId", event.target.value ? Number(event.target.value) : undefined)} className="mt-3 h-10 w-full rounded-md border border-white/10 bg-[#201d2b] px-3 text-xs text-white"><option value="">No approved profile selected</option>{approvedProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.payload.brandName} · {profile.payload.brandVoice}</option>)}</select>{approvedAssets.length > 0 && <div className="mt-3 space-y-2">{approvedAssets.slice(0, 5).map(asset => <label key={asset.id} className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={brief.brandForgeAssetIds.includes(asset.id)} onChange={() => changeBrief("brandForgeAssetIds", brief.brandForgeAssetIds.includes(asset.id) ? brief.brandForgeAssetIds.filter(id => id !== asset.id) : [...brief.brandForgeAssetIds, asset.id])} className="accent-rose-200" />{asset.payload.assetName} · {asset.payload.assetVersion}</label>)}</div>}{!approvedProfiles.length && <p className="mt-2 text-[11px] text-white/40">No approved BrandForge profiles yet. Add one when you are ready; campaign creation still works without it.</p>}</div>
               <Button onClick={generateCampaign} disabled={generate.isPending} className="mt-2 h-12 w-full rounded-xl bg-gradient-to-r from-rose-200 to-violet-300 font-semibold text-[#241a2b] hover:from-rose-100 hover:to-violet-200">{generate.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating campaign pack...</> : <><WandSparkles className="mr-2 h-4 w-4" />Generate campaign pack</>}</Button>
             </div>
           </div>

@@ -62,4 +62,14 @@ describe("campaign helpers", () => {
     await expect(caller.workspace.context()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(caller.workspace.contracts.list({ workspaceId: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
+
+  it("requires an authenticated user before viewing BrandForge intake records", async () => {
+    const caller = appRouter.createCaller({
+      user: null,
+      req: {} as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    });
+
+    await expect(caller.brandForge.profiles.list({ workspaceId: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });

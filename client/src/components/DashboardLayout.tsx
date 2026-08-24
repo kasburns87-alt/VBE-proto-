@@ -20,12 +20,13 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Archive, BarChart3, BrainCircuit, LogOut, PanelLeft, Plus, Sparkles, UsersRound } from "lucide-react";
+import { Archive, BarChart3, BrainCircuit, LogOut, PanelLeft, Palette, Plus, Sparkles, UsersRound } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 
 const menuItems = [
+  { icon: Palette, label: "BrandForge", path: "/brandforge" },
   { icon: Plus, label: "New campaign", path: "/" },
   { icon: BrainCircuit, label: "Marketing executive", path: "/executive" },
   { icon: BarChart3, label: "Performance", path: "/analytics" },

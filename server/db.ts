@@ -70,6 +70,7 @@ export type CampaignCreateInput = {
   goal: string;
   tone: string;
   platforms: string[];
+  brandForgeContext?: unknown;
 };
 
 export async function createCampaign(input: CampaignCreateInput) {
