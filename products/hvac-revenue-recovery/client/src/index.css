@@ -1,0 +1,69 @@
+/* SIGNAL FURNACE DESIGN: warm ivory, charcoal authority, and furnace-orange signal language establish a premium industrial-editorial operating system. */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,700;1,9..40,800;1,9..40,900&family=DM+Serif+Display:ital@0;1&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --background: oklch(0.95 0.012 83);
+  --foreground: oklch(0.22 0.005 107);
+  --card: oklch(0.91 0.012 83);
+  --card-foreground: oklch(0.22 0.005 107);
+  --popover: oklch(0.95 0.012 83);
+  --popover-foreground: oklch(0.22 0.005 107);
+  --primary: oklch(0.55 0.18 37);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.88 0.014 83);
+  --secondary-foreground: oklch(0.22 0.005 107);
+  --muted: oklch(0.88 0.014 83);
+  --muted-foreground: oklch(0.47 0.008 107);
+  --accent: oklch(0.88 0.014 83);
+  --accent-foreground: oklch(0.22 0.005 107);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.55 0.008 107 / 0.2);
+  --input: oklch(0.55 0.008 107 / 0.2);
+  --ring: oklch(0.55 0.18 37);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { scroll-behavior: smooth; }
+  body { @apply bg-background text-foreground; font-family: "DM Sans", Arial, sans-serif; }
+  button:not(:disabled), a[href], select:not(:disabled), input:not(:disabled), textarea:not(:disabled) { @apply cursor-pointer; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  main > section { animation: signal-enter 520ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+  main > section:nth-child(2) { animation-delay: 55ms; }
+  main > section:nth-child(3) { animation-delay: 85ms; }
+}
+
+@keyframes signal-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
